@@ -3,6 +3,8 @@ import type { VisualizerComputedState, RunSummary } from "./types";
 export const defaultStatusText = "No traversal data loaded";
 export const INSPECTOR_PANEL_WIDTH = "24rem";
 export const INSPECTOR_PANEL_WIDTH_PX = 384;
+export const TRAVERSAL_ANIMATION_STEP_MS = 42;
+export const TRAVERSAL_MATCH_FLASH_MS = 320;
 
 export const emptySummary: RunSummary = {
   info: 0,

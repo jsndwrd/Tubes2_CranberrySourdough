@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElmtNode } from "./lib/tree";
-import { createEmptyComputedState, INSPECTOR_PANEL_WIDTH } from "./frontend/constants";
+import { createEmptyComputedState, INSPECTOR_PANEL_WIDTH, TRAVERSAL_ANIMATION_STEP_MS, TRAVERSAL_MATCH_FLASH_MS } from "./frontend/constants";
 import { AboutModal } from "./frontend/components/AboutModal";
 import { AppHeader } from "./frontend/components/AppHeader";
 import { ConfigurationPanel } from "./frontend/components/ConfigurationPanel";
@@ -20,6 +20,7 @@ function App() {
   const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isInspectorVisible, setIsInspectorVisible] = useState(false);
+  const [isTraversalAnimating, setIsTraversalAnimating] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -27,7 +28,12 @@ function App() {
   const [selector, setSelector] = useState("");
   const [limitInput, setLimitInput] = useState("10");
   const [parsedRoot, setParsedRoot] = useState<ElmtNode | null>(null);
+  const [animatedVisitedPaths, setAnimatedVisitedPaths] = useState<string[]>([]);
+  const [animatedMatchedPaths, setAnimatedMatchedPaths] = useState<string[]>([]);
+  const [activeTraversalPath, setActiveTraversalPath] = useState<string | null>(null);
+  const [flashingMatchedPaths, setFlashingMatchedPaths] = useState<string[]>([]);
   const [computedState, setComputedState] = useState(createEmptyComputedState);
+  const traversalAnimationTimeoutsRef = useRef<number[]>([]);
 
   const {
     results,
@@ -42,8 +48,12 @@ function App() {
 
   const limitValue = Math.max(1, Number.parseInt(limitInput, 10) || 10);
   const visibleResults = resultMode === "top" ? results.slice(0, limitValue) : results;
-  const visitedPathSet = useMemo(() => new Set(visitedPaths), [visitedPaths]);
-  const matchedPathSet = useMemo(() => new Set(matchedPaths), [matchedPaths]);
+  const visibleVisitedPaths = isTraversalAnimating ? animatedVisitedPaths : visitedPaths;
+  const visibleMatchedPaths = isTraversalAnimating ? animatedMatchedPaths : matchedPaths;
+  const visualStatusText = isTraversalAnimating ? `Animating ${algorithm} traversal...` : statusText;
+  const visitedPathSet = useMemo(() => new Set(visibleVisitedPaths), [visibleVisitedPaths]);
+  const matchedPathSet = useMemo(() => new Set(visibleMatchedPaths), [visibleMatchedPaths]);
+  const flashingMatchedPathSet = useMemo(() => new Set(flashingMatchedPaths), [flashingMatchedPaths]);
   const desktopColumns = `${isConfigurationCollapsed ? "0rem" : "19rem"} minmax(0,1fr) ${isInspectorVisible ? INSPECTOR_PANEL_WIDTH : "0rem"}`;
   const visualRoot = useMemo(
     () => (parsedRoot ? findVisualRoot(parsedRoot) : null),
@@ -67,8 +77,81 @@ function App() {
     return meta ? buildNodeDetails(meta) : null;
   }, [pathMetaMap, selectedPath]);
 
+  function clearTraversalAnimationTimeouts() {
+    for (const timeoutId of traversalAnimationTimeoutsRef.current) {
+      window.clearTimeout(timeoutId);
+    }
+
+    traversalAnimationTimeoutsRef.current = [];
+  }
+
+  function queueTraversalAnimation(callback: () => void, delay: number) {
+    const timeoutId = window.setTimeout(callback, delay);
+    traversalAnimationTimeoutsRef.current.push(timeoutId);
+  }
+
+  function syncTraversalAnimation(visitedSequence: string[], matchedSequence: string[]) {
+    setAnimatedVisitedPaths(visitedSequence);
+    setAnimatedMatchedPaths(matchedSequence);
+    setActiveTraversalPath(null);
+    setFlashingMatchedPaths([]);
+    setIsTraversalAnimating(false);
+  }
+
+  function startTraversalAnimation(visitedSequence: string[], matchedSequence: string[]) {
+    clearTraversalAnimationTimeouts();
+
+    if (visitedSequence.length === 0) {
+      syncTraversalAnimation(visitedSequence, matchedSequence);
+      return;
+    }
+
+    const revealedVisitedPaths: string[] = [];
+    const revealedMatchedPaths: string[] = [];
+    const matchedPathLookup = new Set(matchedSequence);
+    let stepIndex = 0;
+
+    setAnimatedVisitedPaths([]);
+    setAnimatedMatchedPaths([]);
+    setActiveTraversalPath(null);
+    setFlashingMatchedPaths([]);
+    setIsTraversalAnimating(true);
+
+    const animateStep = () => {
+      const path = visitedSequence[stepIndex];
+      revealedVisitedPaths.push(path);
+      setAnimatedVisitedPaths([...revealedVisitedPaths]);
+      setActiveTraversalPath(path);
+
+      if (matchedPathLookup.has(path)) {
+        revealedMatchedPaths.push(path);
+        setAnimatedMatchedPaths([...revealedMatchedPaths]);
+        setFlashingMatchedPaths((current) => [...current, path]);
+        queueTraversalAnimation(() => {
+          setFlashingMatchedPaths((current) => current.filter((item) => item !== path));
+        }, TRAVERSAL_MATCH_FLASH_MS);
+      }
+
+      stepIndex += 1;
+
+      if (stepIndex < visitedSequence.length) {
+        queueTraversalAnimation(animateStep, TRAVERSAL_ANIMATION_STEP_MS);
+        return;
+      }
+
+      queueTraversalAnimation(() => {
+        syncTraversalAnimation(visitedSequence, matchedSequence);
+      }, TRAVERSAL_MATCH_FLASH_MS);
+    };
+
+    animateStep();
+  }
+
   function getStatus(path: string) {
-    if (selectedPath === path) {
+    const canHighlightSelectedPath =
+      !isTraversalAnimating || visitedPaths.length === 0 || visitedPathSet.has(path) || matchedPathSet.has(path);
+
+    if (selectedPath === path && canHighlightSelectedPath) {
       return "current" as const;
     }
     if (matchedPathSet.has(path)) {
@@ -80,6 +163,12 @@ function App() {
     return "inactive" as const;
   }
 
+  useEffect(() => {
+    return () => {
+      clearTraversalAnimationTimeouts();
+    };
+  }, []);
+
   async function resolveCurrentSource(mode: SourceMode) {
     return resolveSourceRoot({mode, htmlInput, urlInput,});
   }
@@ -88,14 +177,18 @@ function App() {
     setIsBusy(true);
     try {
       const { root, label } = await resolveCurrentSource(mode);
+      clearTraversalAnimationTimeouts();
       setParsedRoot(root);
       setComputedState(buildParsedSourceState(root, label));
+      syncTraversalAnimation([], []);
       setIsInspectorVisible(false);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to parse the DOM.";
+      clearTraversalAnimationTimeouts();
       setParsedRoot(null);
       setComputedState(buildTraversalErrorState(message));
+      syncTraversalAnimation([], []);
       setIsInspectorVisible(false);
     } finally {
       setIsBusy(false);
@@ -110,11 +203,14 @@ function App() {
 
       setParsedRoot(root);
       setComputedState(nextState);
+      startTraversalAnimation(nextState.visitedPaths, nextState.matchedPaths);
       setIsInspectorVisible(true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to run traversal.";
+      clearTraversalAnimationTimeouts();
       setComputedState(buildTraversalErrorState(message));
+      syncTraversalAnimation([], []);
       setIsInspectorVisible(false);
     } finally {
       setIsBusy(false);
@@ -122,6 +218,7 @@ function App() {
   }
 
   function resetForm() {
+    clearTraversalAnimationTimeouts();
     setAlgorithm("BFS");
     setSourceMode("html");
     setResultMode("top");
@@ -131,6 +228,7 @@ function App() {
     setLimitInput("10");
     setParsedRoot(null);
     setComputedState(createEmptyComputedState());
+    syncTraversalAnimation([], []);
     setIsInspectorVisible(false);
   }
 
@@ -186,12 +284,14 @@ function App() {
 
           <main className="flex min-w-0 flex-1 flex-col bg-[var(--surface-muted)] p-4 md:p-5 xl:overflow-hidden">
             <TreeExplorer
+              activeTraversalPath={activeTraversalPath}
+              flashingMatchedPathSet={flashingMatchedPathSet}
               getStatus={getStatus}
               isInspectorVisible={isInspectorVisible}
               layout={visualLayout}
               onBackgroundClick={() => setIsInspectorVisible(false)}
               onSelect={selectPath}
-              statusText={statusText}
+              statusText={visualStatusText}
             />
           </main>
 

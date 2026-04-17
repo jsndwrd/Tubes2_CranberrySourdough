@@ -5,6 +5,8 @@ import type { NodeStatus, VisualLayout, VisualLayoutNode } from "../types";
 import { VIEWPORT_PADDING, WHEEL_ZOOM_INTENSITY, ZOOM_STEP, clampZoom, statusStyles } from "../logic/visualTree";
 
 type TreeExplorerProps = {
+  activeTraversalPath: string | null;
+  flashingMatchedPathSet: Set<string>;
   layout: VisualLayout | null;
   getStatus: (path: string) => NodeStatus;
   isInspectorVisible: boolean;
@@ -31,7 +33,19 @@ function TreeNode({ label, status, compact = false }: { label: string; status: N
   );
 }
 
-function TreeNodeCard({ node, status, onSelect }: { node: VisualLayoutNode; status: NodeStatus; onSelect: (path: string) => void }) {
+function TreeNodeCard({
+  isMatchFlashing,
+  isTraversalActive,
+  node,
+  onSelect,
+  status
+}: {
+  isMatchFlashing: boolean;
+  isTraversalActive: boolean;
+  node: VisualLayoutNode;
+  status: NodeStatus;
+  onSelect: (path: string) => void;
+}) {
   const tone = statusStyles[status];
 
   return (
@@ -42,6 +56,12 @@ function TreeNodeCard({ node, status, onSelect }: { node: VisualLayoutNode; stat
         status === "inactive"
           ? "hover:-translate-y-0.5 hover:border-[var(--primary)]/25"
           : "hover:-translate-y-0.5",
+        isTraversalActive
+          ? "ring-2 ring-[var(--primary)]/16 ring-offset-2 ring-offset-white"
+          : "",
+        isMatchFlashing
+          ? "ring-2 ring-[#2d8a5a]/28 ring-offset-2 ring-offset-white animate-[pulse_0.45s_ease-out_1]"
+          : "",
         tone.card
       ].join(" ")}
       onClick={(event) => {
@@ -100,7 +120,7 @@ function TreeNodeCard({ node, status, onSelect }: { node: VisualLayoutNode; stat
   );
 }
 
-export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
+export function TreeExplorer({ activeTraversalPath, flashingMatchedPathSet, layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
@@ -252,13 +272,15 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
 
     return layout.nodes.map((entry) => (
       <TreeNodeCard
+        isMatchFlashing={flashingMatchedPathSet.has(entry.id)}
+        isTraversalActive={activeTraversalPath === entry.id}
         key={entry.id}
         node={entry}
         onSelect={onSelect}
         status={getStatus(entry.id)}
       />
     ));
-  }, [layout, getStatus, onSelect]);
+  }, [activeTraversalPath, flashingMatchedPathSet, layout, getStatus, onSelect]);
 
   useEffect(() => {
     if (previousInspectorVisibleRef.current === isInspectorVisible) {
