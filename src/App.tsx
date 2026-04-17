@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { ElmtNode } from "./lib/tree";
 import { createEmptyComputedState, INSPECTOR_PANEL_WIDTH } from "./frontend/constants";
+import { AboutModal } from "./frontend/components/AboutModal";
 import { AppHeader } from "./frontend/components/AppHeader";
 import { ConfigurationPanel } from "./frontend/components/ConfigurationPanel";
 import { ExecutionTrace } from "./frontend/components/ExecutionTrace";
@@ -17,6 +18,7 @@ function App() {
   const [sourceMode, setSourceMode] = useState<SourceMode>("html");
   const [resultMode, setResultMode] = useState<ResultMode>("top");
   const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
+  const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isInspectorVisible, setIsInspectorVisible] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
@@ -152,6 +154,7 @@ function App() {
         <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
         <AppHeader
           isConfigurationCollapsed={isConfigurationCollapsed}
+          onOpenAbout={() => setIsAboutOpen(true)}
           onToggleConfiguration={() => setIsConfigurationCollapsed((value) => !value)}
         />
 
@@ -211,6 +214,10 @@ function App() {
           traceEntries={traceEntries}
         />
       </div>
+      <AboutModal
+        isOpen={isAboutOpen}
+        onClose={() => setIsAboutOpen(false)}
+      />
     </div>
   );
 }
