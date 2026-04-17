@@ -299,10 +299,19 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
         role="dialog"
       >
         <div className="flex items-start justify-between gap-4 border-b border-black/5 px-5 py-4 md:px-6">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">About This Project</p>
-            <h2 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Cranberry Sourdough</h2>
-            <p className="text-sm text-[var(--text-muted)]">DOM traversal visualizer with guided context, authorship, and algorithm overview.</p>
+          <div className="flex items-start gap-4">
+            <div className="flex h-16 w-16 items-center justify-center">
+              <img
+                alt="Cranberry Sourdough logo"
+                className="h-full w-full object-contain"
+                src="/favicon.png?v=2"
+              />
+            </div>
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">About This Web</p>
+              <h2 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Cranberry Sourdough</h2>
+              <p className="text-sm text-[var(--text-muted)]">DOM traversal visualizer</p>
+            </div>
           </div>
           <button
             aria-label="Close about dialog"
