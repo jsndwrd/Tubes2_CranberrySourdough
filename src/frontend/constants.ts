@@ -1,7 +1,5 @@
 import type { VisualizerComputedState, RunSummary } from "./types";
 
-export const navigation = ["Visualizer", "Library", "Documentation"];
-
 export const defaultStatusText = "No traversal data loaded";
 
 export const emptySummary: RunSummary = {

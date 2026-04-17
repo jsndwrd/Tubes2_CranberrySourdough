@@ -1,5 +1,3 @@
-import { navigation } from "../constants";
-
 type AppHeaderProps = {
   isConfigurationCollapsed: boolean;
   onToggleConfiguration: () => void;
@@ -19,7 +17,7 @@ export function AppHeader({ isConfigurationCollapsed, onToggleConfiguration }: A
           {isConfigurationCollapsed ? "left_panel_open" : "left_panel_close"}
         </span>
       </button>
-      <div className="flex items-center gap-4 md:gap-6 xl:pl-14">
+      <div className="flex items-center xl:pl-14">
         <div>
           <p className="font-headline text-lg font-semibold tracking-tight text-[var(--text)] md:text-xl">
             Cranberry Sourdough
@@ -28,22 +26,6 @@ export function AppHeader({ isConfigurationCollapsed, onToggleConfiguration }: A
             DOM Traversal Visualizer
           </p>
         </div>
-        <nav className="hidden items-center gap-4 md:flex">
-          {navigation.map((item, index) => (
-            <a
-              key={item}
-              className={[
-                "border-b-2 border-transparent pb-1 text-sm font-medium transition-colors",
-                index === 0
-                  ? "border-[var(--primary)] text-[var(--primary)]"
-                  : "text-[var(--text-muted)] hover:text-[var(--primary)]"
-              ].join(" ")}
-              href="#"
-            >
-              {item}
-            </a>
-          ))}
-        </nav>
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 sm:flex">
