@@ -17,6 +17,7 @@ function App() {
   const [sourceMode, setSourceMode] = useState<SourceMode>("html");
   const [resultMode, setResultMode] = useState<ResultMode>("top");
   const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
+  const [isInspectorVisible, setIsInspectorVisible] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -40,6 +41,7 @@ function App() {
   const visibleResults = resultMode === "top" ? results.slice(0, limitValue) : results;
   const visitedPathSet = useMemo(() => new Set(visitedPaths), [visitedPaths]);
   const matchedPathSet = useMemo(() => new Set(matchedPaths), [matchedPaths]);
+  const desktopColumns = `${isConfigurationCollapsed ? "0rem" : "19rem"} minmax(0,1fr) ${isInspectorVisible ? "24rem" : "0rem"}`;
   const visualRoot = useMemo(
     () => (parsedRoot ? findVisualRoot(parsedRoot) : null),
     [parsedRoot],
@@ -89,11 +91,13 @@ function App() {
       const { root, label } = await resolveCurrentSource(mode);
       setParsedRoot(root);
       setComputedState(buildParsedSourceState(root, label));
+      setIsInspectorVisible(false);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to parse the DOM.";
       setParsedRoot(null);
       setComputedState(buildTraversalErrorState(message));
+      setIsInspectorVisible(false);
     } finally {
       setIsBusy(false);
     }
@@ -107,10 +111,12 @@ function App() {
 
       setParsedRoot(root);
       setComputedState(nextState);
+      setIsInspectorVisible(true);
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to run traversal.";
       setComputedState(buildTraversalErrorState(message));
+      setIsInspectorVisible(false);
     } finally {
       setIsBusy(false);
     }
@@ -126,6 +132,7 @@ function App() {
     setLimitInput("10");
     setParsedRoot(null);
     setComputedState(createEmptyComputedState());
+    setIsInspectorVisible(false);
   }
 
   function selectPath(path: string) {
@@ -133,6 +140,7 @@ function App() {
       ...current,
       selectedPath: path,
     }));
+    setIsInspectorVisible(true);
   }
 
   function clearTrace() {
@@ -150,7 +158,10 @@ function App() {
           onToggleConfiguration={() => setIsConfigurationCollapsed((value) => !value)}
         />
 
-        <div className="flex flex-1 flex-col xl:flex-row xl:overflow-hidden">
+        <div
+          className="flex flex-1 flex-col xl:grid xl:overflow-hidden xl:transition-[grid-template-columns] xl:duration-300 xl:ease-out"
+          style={{ gridTemplateColumns: desktopColumns }}
+        >
           <ConfigurationPanel
             algorithm={algorithm}
             collapsed={isConfigurationCollapsed}
@@ -176,7 +187,9 @@ function App() {
           <main className="flex min-w-0 flex-1 flex-col bg-[var(--surface-muted)] p-4 md:p-5 xl:overflow-hidden">
             <TreeExplorer
               getStatus={getStatus}
+              isInspectorVisible={isInspectorVisible}
               layout={visualLayout}
+              onBackgroundClick={() => setIsInspectorVisible(false)}
               onSelect={selectPath}
               statusText={statusText}
             />
@@ -188,6 +201,7 @@ function App() {
             selectedDetails={selectedDetails}
             selectedPath={selectedPath}
             summary={summary}
+            visible={isInspectorVisible}
             visibleResults={visibleResults}
           />
         </div>

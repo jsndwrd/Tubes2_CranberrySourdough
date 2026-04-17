@@ -34,8 +34,7 @@ export function ConfigurationPanel({ algorithm, collapsed, sourceMode, resultMod
   return (
     <div
       className={[
-        "relative w-full transition-[width] duration-300 ease-out xl:flex-shrink-0 xl:overflow-visible",
-        collapsed ? "xl:w-0" : "xl:w-[19rem]"
+        "relative w-full xl:min-w-0 xl:overflow-visible"
       ].join(" ")}
     >
       <aside

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import type { NodeStatus, VisualLayout, VisualLayoutNode } from "../types";
 import { VIEWPORT_PADDING, WHEEL_ZOOM_INTENSITY, ZOOM_STEP, clampZoom, statusStyles } from "../logic/visualTree";
@@ -6,9 +6,14 @@ import { VIEWPORT_PADDING, WHEEL_ZOOM_INTENSITY, ZOOM_STEP, clampZoom, statusSty
 type TreeExplorerProps = {
   layout: VisualLayout | null;
   getStatus: (path: string) => NodeStatus;
+  isInspectorVisible: boolean;
+  onBackgroundClick: () => void;
   onSelect: (path: string) => void;
   statusText: string;
 };
+
+const INSPECTOR_SHIFT_PX = 384;
+const INSPECTOR_SHIFT_DURATION_MS = 300;
 
 function TreeNode({ label, status, compact = false }: { label: string; status: NodeStatus; compact?: boolean }) {
   return (
@@ -39,7 +44,10 @@ function TreeNodeCard({ node, status, onSelect }: { node: VisualLayoutNode; stat
           : "hover:-translate-y-0.5",
         tone.card
       ].join(" ")}
-      onClick={() => onSelect(node.id)}
+      onClick={(event) => {
+        event.stopPropagation();
+        onSelect(node.id);
+      }}
       style={{
         left: node.x,
         top: node.y,
@@ -92,13 +100,61 @@ function TreeNodeCard({ node, status, onSelect }: { node: VisualLayoutNode; stat
   );
 }
 
-export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeExplorerProps) {
+export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
   const scrollPositionRef = useRef({ left: 0, top: 0 });
+  const inspectorAnimationFrameRef = useRef<number | null>(null);
+  const previousInspectorVisibleRef = useRef(isInspectorVisible);
 
   zoomRef.current = zoom;
+
+  function cancelInspectorShiftAnimation() {
+    if (inspectorAnimationFrameRef.current === null) {
+      return;
+    }
+
+    cancelAnimationFrame(inspectorAnimationFrameRef.current);
+    inspectorAnimationFrameRef.current = null;
+  }
+
+  function animateInspectorShift(delta: number) {
+    const container = viewportRef.current;
+    if (!container || delta === 0) {
+      return;
+    }
+
+    cancelInspectorShiftAnimation();
+
+    const startedAt = performance.now();
+    const startScrollLeft = container.scrollLeft;
+
+    const step = (now: number) => {
+      const currentContainer = viewportRef.current;
+      if (!currentContainer) {
+        inspectorAnimationFrameRef.current = null;
+        return;
+      }
+
+      const progress = Math.min(1, (now - startedAt) / INSPECTOR_SHIFT_DURATION_MS);
+      const eased = 1 - (1 - progress) ** 3;
+      const maxScrollLeft = Math.max(currentContainer.scrollWidth - currentContainer.clientWidth, 0);
+      const nextScrollLeft = Math.max(0, Math.min(startScrollLeft + delta * eased, maxScrollLeft));
+
+      currentContainer.scrollLeft = nextScrollLeft;
+      syncScrollPosition(currentContainer);
+
+      if (progress < 1) {
+        inspectorAnimationFrameRef.current = requestAnimationFrame(step);
+        return;
+      }
+
+      inspectorAnimationFrameRef.current = null;
+    };
+
+    inspectorAnimationFrameRef.current = requestAnimationFrame(step);
+  }
 
   function syncScrollPosition(container: HTMLDivElement) {
     scrollPositionRef.current = {
@@ -215,6 +271,26 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
     ));
   }, [layout, getStatus, onSelect]);
 
+  useEffect(() => {
+    if (previousInspectorVisibleRef.current === isInspectorVisible) {
+      return;
+    }
+
+    previousInspectorVisibleRef.current = isInspectorVisible;
+
+    if (typeof window !== "undefined" && window.innerWidth < 1280) {
+      return;
+    }
+
+    animateInspectorShift(isInspectorVisible ? INSPECTOR_SHIFT_PX : -INSPECTOR_SHIFT_PX);
+  }, [isInspectorVisible]);
+
+  useEffect(() => {
+    return () => {
+      cancelInspectorShiftAnimation();
+    };
+  }, []);
+
   return (
     <div className="ambient-shadow relative flex flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--surface-panel)]">
       <div className="absolute inset-x-4 top-4 z-10 flex flex-col gap-2.5 md:flex-row md:items-start md:justify-between">
@@ -288,6 +364,7 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
 
       <div
         className="tree-viewport-grid flex flex-1 overflow-auto px-4 pb-5 pt-24 md:pb-6"
+        onClick={onBackgroundClick}
         onScroll={(event) => {
           syncScrollPosition(event.currentTarget);
         }}
