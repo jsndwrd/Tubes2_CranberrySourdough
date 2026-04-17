@@ -22,6 +22,14 @@ type ConfigurationPanelProps = {
 };
 
 export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, urlInput, htmlInput, selector, limitInput, onAlgorithmChange, onSourceModeChange, onResultModeChange, onUrlInputChange, onHtmlInputChange, onSelectorChange, onLimitInputChange, onParseSource, onRunTraversal, onReset }: ConfigurationPanelProps) {
+  const tabButtonClass = "pb-2 text-sm font-medium transition-colors hover:text-[var(--primary)]";
+  const primaryActionButtonClass = "flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-22px_rgba(0,69,163,0.8)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70";
+  const tertiaryActionButtonClass = "w-full rounded-xl border border-[var(--primary)]/16 bg-white px-4 py-2.5 text-sm font-medium text-[var(--primary)] transition hover:-translate-y-0.5 hover:border-[var(--primary)]/26 hover:bg-[var(--primary-soft)]/38 hover:shadow-[0_14px_24px_-20px_rgba(0,69,163,0.52)] disabled:cursor-not-allowed disabled:opacity-70";
+  const segmentedContainerClass = "flex rounded-xl border border-black/5 bg-white p-1";
+  const segmentedButtonBaseClass = "rounded-lg border px-3 py-1.5 text-xs font-medium transition";
+  const algorithmCardBaseClass = "ambient-shadow rounded-xl border px-3.5 py-3 text-left transition";
+  const selectedHighlightClass = "border-[var(--primary)]/30 bg-[linear-gradient(180deg,rgba(217,226,255,0.92)_0%,rgba(255,255,255,0.98)_100%)] text-[var(--primary)] shadow-[0_18px_30px_-22px_rgba(0,69,163,0.72)] ring-1 ring-[var(--primary)]/14";
+
   return (
     <aside className="w-full border-b border-black/5 bg-[var(--surface-low)] p-4 xl:w-[19rem] xl:flex-shrink-0 xl:overflow-y-auto xl:border-b-0 xl:border-r">
       <div className="space-y-5">
@@ -34,7 +42,7 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
             <div className="flex gap-3 border-b border-[var(--outline)]/40">
               <button
                 className={[
-                  "pb-2 text-sm font-medium",
+                  tabButtonClass,
                   sourceMode === "url"
                     ? "border-b-2 border-[var(--primary)] text-[var(--primary)]"
                     : "text-[var(--text-muted)]"
@@ -46,7 +54,7 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
               </button>
               <button
                 className={[
-                  "pb-2 text-sm font-medium",
+                  tabButtonClass,
                   sourceMode === "html"
                     ? "border-b-2 border-[var(--primary)] text-[var(--primary)]"
                     : "text-[var(--text-muted)]"
@@ -73,7 +81,7 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                   />
                 </label>
                 <button
-                  className="w-full rounded-xl bg-[var(--surface-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
+                  className={tertiaryActionButtonClass}
                   disabled={isBusy}
                   onClick={() => onParseSource("url")}
                   type="button"
@@ -95,7 +103,7 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                   />
                 </label>
                 <button
-                  className="w-full rounded-xl bg-[var(--surface-strong)] px-4 py-2.5 text-sm font-medium text-[var(--text)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
+                  className={tertiaryActionButtonClass}
                   disabled={isBusy}
                   onClick={() => onParseSource("html")}
                   type="button"
@@ -117,10 +125,10 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                 <button
                   key={item}
                   className={[
-                    "ambient-shadow rounded-xl border px-3.5 py-3 text-left transition",
+                    algorithmCardBaseClass,
                     algorithm === item
-                      ? "border-transparent bg-[var(--surface-panel)] shadow-[0_16px_40px_-24px_rgba(25,28,29,0.24)]"
-                      : "border-black/5 bg-white/60 opacity-70 hover:opacity-100"
+                      ? "border-[var(--primary)]/30 bg-[linear-gradient(180deg,rgba(217,226,255,0.92)_0%,rgba(255,255,255,0.98)_100%)] shadow-[0_18px_30px_-22px_rgba(0,69,163,0.72)] ring-1 ring-[var(--primary)]/14"
+                      : "border-black/5 bg-white/78 hover:border-[var(--primary)]/18 hover:bg-[var(--primary-soft)]/32 hover:shadow-[0_14px_24px_-20px_rgba(0,69,163,0.4)]"
                   ].join(" ")}
                   onClick={() => onAlgorithmChange(item)}
                   type="button"
@@ -128,14 +136,17 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                   <span
                     className={[
                       "material-symbols-outlined mb-2 block text-[20px]",
-                      item === "BFS"
+                      algorithm === item
                         ? "text-[var(--primary)]"
-                        : "text-[var(--secondary)]"
+                        : "text-[var(--primary)]/72"
                     ].join(" ")}
                   >
                     {item === "BFS" ? "dns" : "account_tree"}
                   </span>
-                  <p className="text-sm font-semibold text-[var(--text)]">
+                  <p className={[
+                    "text-sm font-semibold",
+                    algorithm === item ? "text-[var(--primary)]" : "text-[var(--text)]"
+                  ].join(" ")}>
                     {item}
                   </p>
                 </button>
@@ -161,13 +172,13 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
               <label className="text-sm font-medium text-[var(--text-muted)]">
                 Limit Results (N)
               </label>
-              <div className="flex rounded-xl bg-[var(--surface-strong)] p-1">
+              <div className={segmentedContainerClass}>
                 <button
                   className={[
-                    "rounded-lg px-3 py-1.5 text-xs font-medium",
+                    segmentedButtonBaseClass,
                     resultMode === "top"
-                      ? "bg-[var(--surface-panel)] text-[var(--text)] shadow-sm"
-                      : "text-[var(--text-muted)]"
+                      ? selectedHighlightClass
+                      : "border-transparent text-[var(--text-muted)] hover:border-[var(--primary)]/12 hover:bg-[var(--primary-soft)]/38 hover:text-[var(--primary)]"
                   ].join(" ")}
                   onClick={() => onResultModeChange("top")}
                   type="button"
@@ -176,10 +187,10 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                 </button>
                 <button
                   className={[
-                    "rounded-lg px-3 py-1.5 text-xs font-medium",
+                    segmentedButtonBaseClass,
                     resultMode === "all"
-                      ? "bg-[var(--surface-panel)] text-[var(--text)] shadow-sm"
-                      : "text-[var(--text-muted)]"
+                      ? selectedHighlightClass
+                      : "border-transparent text-[var(--text-muted)] hover:border-[var(--primary)]/12 hover:bg-[var(--primary-soft)]/38 hover:text-[var(--primary)]"
                   ].join(" ")}
                   onClick={() => onResultModeChange("all")}
                   type="button"
@@ -188,17 +199,19 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                 </button>
               </div>
             </div>
-            <input
-              className="w-full rounded-xl border border-black/5 bg-[var(--surface-panel)] px-3.5 py-2.5 text-sm outline-none"
-              onChange={(event) => onLimitInputChange(event.target.value)}
-              type="number"
-              value={limitInput}
-            />
+            {resultMode === "top" ? (
+              <input
+                className="w-full rounded-xl border border-black/5 bg-[var(--surface-panel)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--primary)]"
+                onChange={(event) => onLimitInputChange(event.target.value)}
+                type="number"
+                value={limitInput}
+              />
+            ) : null}
           </div>
 
           <div className="space-y-2.5 pt-1">
             <button
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70"
+              className={primaryActionButtonClass}
               disabled={isBusy}
               onClick={onRunTraversal}
               type="button"
@@ -207,7 +220,7 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
               {isBusy ? "Running..." : "Run Traversal"}
             </button>
             <button
-              className="w-full rounded-xl bg-[var(--danger-soft)] px-4 py-2.5 text-sm font-medium text-[var(--danger)] transition hover:brightness-95"
+              className={tertiaryActionButtonClass}
               onClick={onReset}
               type="button"
             >
