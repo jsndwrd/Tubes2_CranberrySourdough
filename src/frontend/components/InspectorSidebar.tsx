@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+import { INSPECTOR_PANEL_WIDTH } from "../constants";
 import type { Algorithm, NodeDetails, ResultItem, RunSummary } from "../types";
 
 type InspectorSidebarProps = {
@@ -17,11 +19,12 @@ export function InspectorSidebar({ selectedDetails, visibleResults, selectedPath
         "relative w-full overflow-hidden transition-[max-height] duration-300 ease-out xl:min-w-0 xl:overflow-visible",
         visible ? "max-h-[80rem] xl:max-h-none" : "max-h-0 xl:max-h-none"
       ].join(" ")}
+      style={{ "--inspector-panel-width": INSPECTOR_PANEL_WIDTH } as CSSProperties}
     >
       <aside
         aria-hidden={!visible}
         className={[
-          "w-full border-t border-black/5 bg-[var(--surface)] transition-[transform,opacity] duration-300 ease-out xl:absolute xl:inset-y-0 xl:right-0 xl:w-96 xl:overflow-y-auto xl:border-l xl:border-t-0",
+          "w-full border-t border-black/5 bg-[var(--surface)] transition-[transform,opacity] duration-300 ease-out xl:absolute xl:inset-y-0 xl:right-0 xl:w-[var(--inspector-panel-width)] xl:overflow-y-auto xl:border-l xl:border-t-0",
           visible ? "translate-y-0 opacity-100 xl:translate-x-0" : "pointer-events-none -translate-y-3 opacity-0 xl:translate-x-full"
         ].join(" ")}
       >

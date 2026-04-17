@@ -32,11 +32,7 @@ export function ConfigurationPanel({ algorithm, collapsed, sourceMode, resultMod
   const selectedHighlightClass = "border-[var(--primary)]/30 bg-[linear-gradient(180deg,rgba(217,226,255,0.92)_0%,rgba(255,255,255,0.98)_100%)] text-[var(--primary)] shadow-[0_18px_30px_-22px_rgba(0,69,163,0.72)] ring-1 ring-[var(--primary)]/14";
 
   return (
-    <div
-      className={[
-        "relative w-full xl:min-w-0 xl:overflow-visible"
-      ].join(" ")}
-    >
+    <div className="relative w-full xl:min-w-0 xl:overflow-visible">
       <aside
         aria-hidden={collapsed}
         className={[

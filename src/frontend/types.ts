@@ -101,6 +101,7 @@ export type RunSummary = {
 
 export type VisualizerComputedState = {
   results: ResultItem[];
+  pathMetaMap: Map<string, ElementMeta> | null;
   selectedPath: string | null;
   traceEntries: TraceEntry[];
   summary: RunSummary;

@@ -1,12 +1,12 @@
 import { useMemo, useState } from "react";
 import type { ElmtNode } from "./lib/tree";
-import { createEmptyComputedState } from "./frontend/constants";
+import { createEmptyComputedState, INSPECTOR_PANEL_WIDTH } from "./frontend/constants";
 import { AppHeader } from "./frontend/components/AppHeader";
 import { ConfigurationPanel } from "./frontend/components/ConfigurationPanel";
 import { ExecutionTrace } from "./frontend/components/ExecutionTrace";
 import { InspectorSidebar } from "./frontend/components/InspectorSidebar";
 import { TreeExplorer } from "./frontend/components/TreeExplorer";
-import { buildMeta, buildNodeDetails, findVisualRoot } from "./frontend/logic/dom";
+import { buildNodeDetails, findVisualRoot } from "./frontend/logic/dom";
 import { resolveSourceRoot } from "./frontend/logic/source";
 import { buildParsedSourceState, buildTraversalErrorState, executeTraversal, } from "./frontend/logic/traversal";
 import { buildVisualLayout, buildVisualTree, } from "./frontend/logic/visualTree";
@@ -29,6 +29,7 @@ function App() {
 
   const {
     results,
+    pathMetaMap,
     selectedPath,
     traceEntries,
     summary,
@@ -41,7 +42,7 @@ function App() {
   const visibleResults = resultMode === "top" ? results.slice(0, limitValue) : results;
   const visitedPathSet = useMemo(() => new Set(visitedPaths), [visitedPaths]);
   const matchedPathSet = useMemo(() => new Set(matchedPaths), [matchedPaths]);
-  const desktopColumns = `${isConfigurationCollapsed ? "0rem" : "19rem"} minmax(0,1fr) ${isInspectorVisible ? "24rem" : "0rem"}`;
+  const desktopColumns = `${isConfigurationCollapsed ? "0rem" : "19rem"} minmax(0,1fr) ${isInspectorVisible ? INSPECTOR_PANEL_WIDTH : "0rem"}`;
   const visualRoot = useMemo(
     () => (parsedRoot ? findVisualRoot(parsedRoot) : null),
     [parsedRoot],
@@ -54,10 +55,6 @@ function App() {
   const visualLayout = useMemo(
     () => (visualTree ? buildVisualLayout(visualTree) : null),
     [visualTree],
-  );
-  const pathMetaMap = useMemo(
-    () => (parsedRoot ? buildMeta(parsedRoot).pathMetaMap : null),
-    [parsedRoot],
   );
   const selectedDetails = useMemo(() => {
     if (!selectedPath || !pathMetaMap) {

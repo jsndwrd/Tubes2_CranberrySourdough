@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
+import { INSPECTOR_PANEL_WIDTH_PX } from "../constants";
 import type { NodeStatus, VisualLayout, VisualLayoutNode } from "../types";
 import { VIEWPORT_PADDING, WHEEL_ZOOM_INTENSITY, ZOOM_STEP, clampZoom, statusStyles } from "../logic/visualTree";
 
@@ -12,7 +13,6 @@ type TreeExplorerProps = {
   statusText: string;
 };
 
-const INSPECTOR_SHIFT_PX = 384;
 const INSPECTOR_SHIFT_DURATION_MS = 300;
 
 function TreeNode({ label, status, compact = false }: { label: string; status: NodeStatus; compact?: boolean }) {
@@ -104,7 +104,6 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
-  const scrollPositionRef = useRef({ left: 0, top: 0 });
   const inspectorAnimationFrameRef = useRef<number | null>(null);
   const previousInspectorVisibleRef = useRef(isInspectorVisible);
 
@@ -143,7 +142,6 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
       const nextScrollLeft = Math.max(0, Math.min(startScrollLeft + delta * eased, maxScrollLeft));
 
       currentContainer.scrollLeft = nextScrollLeft;
-      syncScrollPosition(currentContainer);
 
       if (progress < 1) {
         inspectorAnimationFrameRef.current = requestAnimationFrame(step);
@@ -156,13 +154,6 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
     inspectorAnimationFrameRef.current = requestAnimationFrame(step);
   }
 
-  function syncScrollPosition(container: HTMLDivElement) {
-    scrollPositionRef.current = {
-      left: container.scrollLeft,
-      top: container.scrollTop
-    };
-  }
-
   function centerViewport(nextZoom: number) {
     if (!layout || !viewportRef.current) {
       return;
@@ -172,7 +163,6 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
     const scaledWidth = layout.width * nextZoom + VIEWPORT_PADDING * 2;
     container.scrollLeft = Math.max((scaledWidth - container.clientWidth) / 2, 0);
     container.scrollTop = 0;
-    syncScrollPosition(container);
   }
 
   function applyZoom(nextZoom: number, focus?: { x: number; y: number }) {
@@ -209,7 +199,6 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
   
     container.scrollLeft = Math.max(nextScrollLeft, 0);
     container.scrollTop = Math.max(nextScrollTop, 0);
-    syncScrollPosition(container);
   }
 
   function fitTree() {
@@ -282,7 +271,7 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
       return;
     }
 
-    animateInspectorShift(isInspectorVisible ? INSPECTOR_SHIFT_PX : -INSPECTOR_SHIFT_PX);
+    animateInspectorShift(isInspectorVisible ? INSPECTOR_PANEL_WIDTH_PX : -INSPECTOR_PANEL_WIDTH_PX);
   }, [isInspectorVisible]);
 
   useEffect(() => {
@@ -365,9 +354,6 @@ export function TreeExplorer({ layout, getStatus, isInspectorVisible, onBackgrou
       <div
         className="tree-viewport-grid flex flex-1 overflow-auto px-4 pb-5 pt-24 md:pb-6"
         onClick={onBackgroundClick}
-        onScroll={(event) => {
-          syncScrollPosition(event.currentTarget);
-        }}
         onWheel={(event) => {
           if (!(event.ctrlKey || event.metaKey)) {
             return;

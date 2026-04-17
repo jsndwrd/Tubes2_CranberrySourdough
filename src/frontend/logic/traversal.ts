@@ -6,8 +6,11 @@ import { buildMeta, buildNodeDetails, formatTime, getDefaultSelectedPath, shortL
 import { matchesGroup, parseSelector } from "./selectors";
 
 export function buildParsedSourceState(root: ElmtNode, label: string): VisualizerComputedState {
+  const { pathMetaMap } = buildMeta(root);
+
   return {
     ...createEmptyComputedState(),
+    pathMetaMap,
     selectedPath: getDefaultSelectedPath(root),
     traceEntries: [{ time: formatTime(), level: "INFO", text: `DOM parsed successfully from ${label}.` }],
     statusText: `DOM ready from ${label}.`
@@ -39,7 +42,7 @@ export function executeTraversal({ root, label, algorithm, selector }: ExecuteTr
     throw new Error("CSS selector is empty.");
   }
 
-  const { elements, metaMap } = buildMeta(root);
+  const { elements, metaMap, pathMetaMap } = buildMeta(root);
   const nextTrace: TraceEntry[] = [{ time: formatTime(), level: "INFO", text: `Traversal started using ${algorithm} on ${label}.` }];
 
   const nextVisitedPaths = new Set<string>();
@@ -108,6 +111,7 @@ export function executeTraversal({ root, label, algorithm, selector }: ExecuteTr
 
   return {
     results: nextResults,
+    pathMetaMap,
     selectedPath: nextResults[0]?.path ?? getDefaultSelectedPath(root),
     traceEntries: nextTrace,
     summary: {
