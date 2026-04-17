@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElmtNode } from "./lib/tree";
-import { createEmptyComputedState, INSPECTOR_PANEL_WIDTH, TRAVERSAL_ANIMATION_STEP_MS, TRAVERSAL_MATCH_FLASH_MS } from "./frontend/constants";
+import { createDefaultSettings, createEmptyComputedState, INSPECTOR_PANEL_WIDTH, TRAVERSAL_MATCH_FLASH_MS } from "./frontend/constants";
 import { AboutModal } from "./frontend/components/AboutModal";
 import { AppHeader } from "./frontend/components/AppHeader";
 import { ConfigurationPanel } from "./frontend/components/ConfigurationPanel";
 import { ExecutionTrace } from "./frontend/components/ExecutionTrace";
 import { InspectorSidebar } from "./frontend/components/InspectorSidebar";
+import { SettingsModal } from "./frontend/components/SettingsModal";
 import { TreeExplorer } from "./frontend/components/TreeExplorer";
 import { buildNodeDetails, findVisualRoot } from "./frontend/logic/dom";
 import { resolveSourceRoot } from "./frontend/logic/source";
@@ -19,6 +20,7 @@ function App() {
   const [resultMode, setResultMode] = useState<ResultMode>("top");
   const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInspectorVisible, setIsInspectorVisible] = useState(false);
   const [isTraversalAnimating, setIsTraversalAnimating] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(true);
@@ -28,10 +30,12 @@ function App() {
   const [selector, setSelector] = useState("");
   const [limitInput, setLimitInput] = useState("10");
   const [parsedRoot, setParsedRoot] = useState<ElmtNode | null>(null);
+  const [settings, setSettings] = useState(createDefaultSettings);
   const [animatedVisitedPaths, setAnimatedVisitedPaths] = useState<string[]>([]);
   const [animatedMatchedPaths, setAnimatedMatchedPaths] = useState<string[]>([]);
   const [activeTraversalPath, setActiveTraversalPath] = useState<string | null>(null);
   const [flashingMatchedPaths, setFlashingMatchedPaths] = useState<string[]>([]);
+  const [autoFitSignal, setAutoFitSignal] = useState(0);
   const [computedState, setComputedState] = useState(createEmptyComputedState);
   const traversalAnimationTimeoutsRef = useRef<number[]>([]);
 
@@ -98,7 +102,7 @@ function App() {
     setIsTraversalAnimating(false);
   }
 
-  function startTraversalAnimation(visitedSequence: string[], matchedSequence: string[]) {
+  function startTraversalAnimation(visitedSequence: string[], matchedSequence: string[], stepMs: number) {
     clearTraversalAnimationTimeouts();
 
     if (visitedSequence.length === 0) {
@@ -135,7 +139,7 @@ function App() {
       stepIndex += 1;
 
       if (stepIndex < visitedSequence.length) {
-        queueTraversalAnimation(animateStep, TRAVERSAL_ANIMATION_STEP_MS);
+        queueTraversalAnimation(animateStep, stepMs);
         return;
       }
 
@@ -203,8 +207,21 @@ function App() {
 
       setParsedRoot(root);
       setComputedState(nextState);
-      startTraversalAnimation(nextState.visitedPaths, nextState.matchedPaths);
-      setIsInspectorVisible(true);
+      if (settings.traversalAnimationEnabled) {
+        startTraversalAnimation(nextState.visitedPaths, nextState.matchedPaths, settings.traversalAnimationStepMs);
+      } else {
+        clearTraversalAnimationTimeouts();
+        syncTraversalAnimation(nextState.visitedPaths, nextState.matchedPaths);
+      }
+      if (settings.openInspectorAfterTraversal) {
+        setIsInspectorVisible(true);
+      }
+      if (settings.openTraceAfterTraversal) {
+        setIsTraceOpen(true);
+      }
+      if (settings.autoFitTreeAfterTraversal) {
+        setAutoFitSignal((current) => current + 1);
+      }
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Failed to run traversal.";
@@ -253,6 +270,7 @@ function App() {
         <AppHeader
           isConfigurationCollapsed={isConfigurationCollapsed}
           onOpenAbout={() => setIsAboutOpen(true)}
+          onOpenSettings={() => setIsSettingsOpen(true)}
           onToggleConfiguration={() => setIsConfigurationCollapsed((value) => !value)}
         />
 
@@ -285,6 +303,7 @@ function App() {
           <main className="flex min-w-0 flex-1 flex-col bg-[var(--surface-muted)] p-4 md:p-5 xl:overflow-hidden">
             <TreeExplorer
               activeTraversalPath={activeTraversalPath}
+              autoFitSignal={autoFitSignal}
               flashingMatchedPathSet={flashingMatchedPathSet}
               getStatus={getStatus}
               isInspectorVisible={isInspectorVisible}
@@ -317,6 +336,13 @@ function App() {
       <AboutModal
         isOpen={isAboutOpen}
         onClose={() => setIsAboutOpen(false)}
+      />
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        onReset={() => setSettings(createDefaultSettings())}
+        onSettingsChange={(next) => setSettings((current) => ({ ...current, ...next }))}
+        settings={settings}
       />
     </div>
   );

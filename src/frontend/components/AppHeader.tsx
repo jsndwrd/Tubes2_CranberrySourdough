@@ -1,10 +1,11 @@
 type AppHeaderProps = {
   isConfigurationCollapsed: boolean;
   onOpenAbout: () => void;
+  onOpenSettings: () => void;
   onToggleConfiguration: () => void;
 };
 
-export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onToggleConfiguration }: AppHeaderProps) {
+export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onOpenSettings, onToggleConfiguration }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-[rgba(248,249,250,0.94)] px-4 py-3 backdrop-blur md:px-5 xl:relative">
       <button
@@ -29,14 +30,13 @@ export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onToggleConfi
         </div>
       </div>
       <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 sm:flex">
-          <button
-            className="rounded-full p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--primary)]"
-            type="button"
-          >
-            <span className="material-symbols-outlined text-[18px]">settings</span>
-          </button>
-        </div>
+        <button
+          className="rounded-full p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--primary)]"
+          onClick={onOpenSettings}
+          type="button"
+        >
+          <span className="material-symbols-outlined text-[18px]">settings</span>
+        </button>
         <button
           className="flex items-center gap-2 rounded-full border border-black/5 bg-white px-3.5 py-2 text-sm font-medium text-[var(--text-muted)] shadow-[0_12px_24px_-20px_rgba(15,23,42,0.22)] transition hover:border-[var(--primary)]/18 hover:bg-[var(--primary-soft)]/36 hover:text-[var(--primary)]"
           onClick={onOpenAbout}

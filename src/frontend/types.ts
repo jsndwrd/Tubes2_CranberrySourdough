@@ -114,3 +114,11 @@ export type RootResolution = {
   root: ElmtNode;
   label: string;
 };
+
+export type VisualizerSettings = {
+  traversalAnimationEnabled: boolean;
+  traversalAnimationStepMs: number;
+  openInspectorAfterTraversal: boolean;
+  openTraceAfterTraversal: boolean;
+  autoFitTreeAfterTraversal: boolean;
+};

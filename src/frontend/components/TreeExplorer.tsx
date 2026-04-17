@@ -6,6 +6,7 @@ import { VIEWPORT_PADDING, WHEEL_ZOOM_INTENSITY, ZOOM_STEP, clampZoom, statusSty
 
 type TreeExplorerProps = {
   activeTraversalPath: string | null;
+  autoFitSignal: number;
   flashingMatchedPathSet: Set<string>;
   layout: VisualLayout | null;
   getStatus: (path: string) => NodeStatus;
@@ -120,7 +121,7 @@ function TreeNodeCard({
   );
 }
 
-export function TreeExplorer({ activeTraversalPath, flashingMatchedPathSet, layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
+export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatchedPathSet, layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
@@ -301,6 +302,14 @@ export function TreeExplorer({ activeTraversalPath, flashingMatchedPathSet, layo
       cancelInspectorShiftAnimation();
     };
   }, []);
+
+  useEffect(() => {
+    if (autoFitSignal === 0 || !layout) {
+      return;
+    }
+
+    fitTree();
+  }, [autoFitSignal, layout]);
 
   return (
     <div className="ambient-shadow relative flex flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--surface-panel)]">
