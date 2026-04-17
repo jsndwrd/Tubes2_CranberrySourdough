@@ -16,6 +16,7 @@ function App() {
   const [algorithm, setAlgorithm] = useState<Algorithm>("BFS");
   const [sourceMode, setSourceMode] = useState<SourceMode>("html");
   const [resultMode, setResultMode] = useState<ResultMode>("top");
+  const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
   const [isTraceOpen, setIsTraceOpen] = useState(true);
   const [isBusy, setIsBusy] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -143,12 +144,18 @@ function App() {
 
   return (
     <div className="bg-[var(--background)] xl:h-screen xl:overflow-hidden">
-      <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
-        <AppHeader isBusy={isBusy} onExecute={runTraversal} />
+        <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
+        <AppHeader
+          isBusy={isBusy}
+          isConfigurationCollapsed={isConfigurationCollapsed}
+          onExecute={runTraversal}
+          onToggleConfiguration={() => setIsConfigurationCollapsed((value) => !value)}
+        />
 
         <div className="flex flex-1 flex-col xl:flex-row xl:overflow-hidden">
           <ConfigurationPanel
             algorithm={algorithm}
+            collapsed={isConfigurationCollapsed}
             htmlInput={htmlInput}
             isBusy={isBusy}
             limitInput={limitInput}
