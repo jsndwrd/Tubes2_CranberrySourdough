@@ -78,7 +78,7 @@ export function ConfigurationPanel({ algorithm, sourceMode, resultMode, isBusy, 
                   onClick={() => onParseSource("url")}
                   type="button"
                 >
-                  {isBusy ? "Loading..." : "Load Snapshot"}
+                  {isBusy ? "Loading..." : "Load Tree"}
                 </button>
               </div>
             ) : (

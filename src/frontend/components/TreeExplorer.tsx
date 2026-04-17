@@ -1,6 +1,7 @@
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import type { NodeStatus, VisualLayout, VisualLayoutNode } from "../types";
-import { VIEWPORT_PADDING, ZOOM_STEP, clampZoom, statusStyles } from "../logic/visualTree";
+import { VIEWPORT_PADDING, WHEEL_ZOOM_INTENSITY, ZOOM_STEP, clampZoom, statusStyles } from "../logic/visualTree";
 
 type TreeExplorerProps = {
   layout: VisualLayout | null;
@@ -94,6 +95,17 @@ function TreeNodeCard({ node, status, onSelect }: { node: VisualLayoutNode; stat
 export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeExplorerProps) {
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(1);
+  const scrollPositionRef = useRef({ left: 0, top: 0 });
+
+  zoomRef.current = zoom;
+
+  function syncScrollPosition(container: HTMLDivElement) {
+    scrollPositionRef.current = {
+      left: container.scrollLeft,
+      top: container.scrollTop
+    };
+  }
 
   function centerViewport(nextZoom: number) {
     if (!layout || !viewportRef.current) {
@@ -104,41 +116,44 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
     const scaledWidth = layout.width * nextZoom + VIEWPORT_PADDING * 2;
     container.scrollLeft = Math.max((scaledWidth - container.clientWidth) / 2, 0);
     container.scrollTop = 0;
+    syncScrollPosition(container);
   }
 
   function applyZoom(nextZoom: number, focus?: { x: number; y: number }) {
-    if (!layout) {
-      return;
-    }
-
+    if (!layout) return;
+  
     const container = viewportRef.current;
     const clamped = clampZoom(nextZoom);
+    if (clamped === zoomRef.current) return;
+  
     if (!container) {
+      zoomRef.current = clamped;
       setZoom(clamped);
       return;
     }
 
+    const scrollLeft = container.scrollLeft;
+    const scrollTop = container.scrollTop;
+    const currentZoom = zoomRef.current;
+  
     const focusX = focus?.x ?? container.clientWidth / 2;
     const focusY = focus?.y ?? container.clientHeight / 2;
-    const contentX = (container.scrollLeft + focusX - VIEWPORT_PADDING) / zoom;
-    const contentY = (container.scrollTop + focusY - VIEWPORT_PADDING) / zoom;
 
-    setZoom(clamped);
+    const contentX = (scrollLeft + focusX - VIEWPORT_PADDING) / currentZoom;
+    const contentY = (scrollTop + focusY - VIEWPORT_PADDING) / currentZoom;
 
-    requestAnimationFrame(() => {
-      if (!viewportRef.current) {
-        return;
-      }
-
-      viewportRef.current.scrollLeft = Math.max(
-        contentX * clamped + VIEWPORT_PADDING - focusX,
-        0
-      );
-      viewportRef.current.scrollTop = Math.max(
-        contentY * clamped + VIEWPORT_PADDING - focusY,
-        0
-      );
+    const nextScrollLeft = contentX * clamped + VIEWPORT_PADDING - focusX;
+    const nextScrollTop = contentY * clamped + VIEWPORT_PADDING - focusY;
+  
+    zoomRef.current = clamped;
+  
+    flushSync(() => {
+      setZoom(clamped);
     });
+  
+    container.scrollLeft = Math.max(nextScrollLeft, 0);
+    container.scrollTop = Math.max(nextScrollTop, 0);
+    syncScrollPosition(container);
   }
 
   function fitTree() {
@@ -152,18 +167,53 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
     const heightRatio =
       (container.clientHeight - VIEWPORT_PADDING * 1.5) / Math.max(layout.height, 1);
     const fittedZoom = clampZoom(Math.min(widthRatio, heightRatio, 1));
-
-    setZoom(fittedZoom);
-
-    requestAnimationFrame(() => {
+    if (fittedZoom === zoomRef.current) {
       centerViewport(fittedZoom);
+      return;
+    }
+
+    zoomRef.current = fittedZoom;
+    flushSync(() => {
+      setZoom(fittedZoom);
     });
+    centerViewport(fittedZoom);
   }
 
   const scaledWidth = layout ? layout.width * zoom + VIEWPORT_PADDING * 2 : 0;
   const scaledHeight = layout ? layout.height * zoom + VIEWPORT_PADDING * 2 : 0;
   const controlButtonClass =
     "rounded-xl bg-white/90 px-3 py-2 text-xs font-medium text-[var(--text)] transition hover:bg-white";
+  const linkElements = useMemo(() => {
+    if (!layout) {
+      return null;
+    }
+
+    return layout.links.map((link) => (
+      <path
+        key={link.id}
+        className={statusStyles[getStatus(link.childId)].line}
+        d={link.path}
+        fill="none"
+        strokeLinecap="round"
+        strokeOpacity="0.55"
+        strokeWidth="2.5"
+      />
+    ));
+  }, [layout, getStatus]);
+  const nodeElements = useMemo(() => {
+    if (!layout) {
+      return null;
+    }
+
+    return layout.nodes.map((entry) => (
+      <TreeNodeCard
+        key={entry.id}
+        node={entry}
+        onSelect={onSelect}
+        status={getStatus(entry.id)}
+      />
+    ));
+  }, [layout, getStatus, onSelect]);
 
   return (
     <div className="ambient-shadow relative flex flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--surface-panel)]">
@@ -197,14 +247,14 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
         <div className="glass-panel flex items-center gap-1.5 rounded-2xl p-1.5">
           <button
             className={controlButtonClass}
-            onClick={() => applyZoom(zoom - ZOOM_STEP)}
+            onClick={() => applyZoom(zoomRef.current - ZOOM_STEP)}
             type="button"
           >
             -
           </button>
           <button
             className={controlButtonClass}
-            onClick={() => centerViewport(zoom)}
+            onClick={() => centerViewport(zoomRef.current)}
             type="button"
           >
             Center
@@ -225,7 +275,7 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
           </button>
           <button
             className="rounded-xl bg-[var(--primary-soft)] px-3 py-2 text-xs font-medium text-[var(--primary)] transition hover:brightness-95"
-            onClick={() => applyZoom(zoom + ZOOM_STEP)}
+            onClick={() => applyZoom(zoomRef.current + ZOOM_STEP)}
             type="button"
           >
             +
@@ -238,14 +288,30 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
 
       <div
         className="tree-viewport-grid flex flex-1 overflow-auto px-4 pb-5 pt-24 md:pb-6"
+        onScroll={(event) => {
+          syncScrollPosition(event.currentTarget);
+        }}
         onWheel={(event) => {
           if (!(event.ctrlKey || event.metaKey)) {
             return;
           }
 
           event.preventDefault();
+          const deltaFactor =
+            event.deltaMode === 1
+              ? 16
+              : event.deltaMode === 2
+                ? event.currentTarget.clientHeight
+                : 1;
+          const normalizedDelta = Math.max(
+            -120,
+            Math.min(120, event.deltaY * deltaFactor)
+          );
           const bounds = event.currentTarget.getBoundingClientRect();
-          applyZoom(zoom + (event.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP), {
+          const nextZoom =
+            zoomRef.current * Math.exp(-normalizedDelta * WHEEL_ZOOM_INTENSITY);
+
+          applyZoom(nextZoom, {
             x: event.clientX - bounds.left,
             y: event.clientY - bounds.top
           });
@@ -266,7 +332,8 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
                 style={{
                   transform: `translate(${VIEWPORT_PADDING}px, ${VIEWPORT_PADDING}px) scale(${zoom})`,
                   width: layout.width,
-                  height: layout.height
+                  height: layout.height,
+                  willChange: "transform"
                 }}
               >
                 <svg
@@ -274,27 +341,10 @@ export function TreeExplorer({ layout, getStatus, onSelect, statusText }: TreeEx
                   height={layout.height}
                   width={layout.width}
                 >
-                  {layout.links.map((link) => (
-                    <path
-                      key={link.id}
-                      className={statusStyles[getStatus(link.childId)].line}
-                      d={link.path}
-                      fill="none"
-                      strokeLinecap="round"
-                      strokeOpacity="0.55"
-                      strokeWidth="2.5"
-                    />
-                  ))}
+                  {linkElements}
                 </svg>
 
-                {layout.nodes.map((entry) => (
-                  <TreeNodeCard
-                    key={entry.id}
-                    node={entry}
-                    onSelect={onSelect}
-                    status={getStatus(entry.id)}
-                  />
-                ))}
+                {nodeElements}
               </div>
             </div>
           </div>
