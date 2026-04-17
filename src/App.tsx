@@ -146,9 +146,7 @@ function App() {
     <div className="bg-[var(--background)] xl:h-screen xl:overflow-hidden">
         <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
         <AppHeader
-          isBusy={isBusy}
           isConfigurationCollapsed={isConfigurationCollapsed}
-          onExecute={runTraversal}
           onToggleConfiguration={() => setIsConfigurationCollapsed((value) => !value)}
         />
 

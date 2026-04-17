@@ -1,13 +1,11 @@
 import { navigation } from "../constants";
 
 type AppHeaderProps = {
-  isBusy: boolean;
   isConfigurationCollapsed: boolean;
-  onExecute: () => void;
   onToggleConfiguration: () => void;
 };
 
-export function AppHeader({ isBusy, isConfigurationCollapsed, onExecute, onToggleConfiguration }: AppHeaderProps) {
+export function AppHeader({ isConfigurationCollapsed, onToggleConfiguration }: AppHeaderProps) {
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-[rgba(248,249,250,0.94)] px-4 py-3 backdrop-blur md:px-5 xl:relative">
       <button
@@ -48,24 +46,6 @@ export function AppHeader({ isBusy, isConfigurationCollapsed, onExecute, onToggl
         </nav>
       </div>
       <div className="flex items-center gap-3">
-        <div className="hidden items-center gap-2 rounded-xl border border-black/5 bg-[var(--surface-muted)] px-3 py-2 lg:flex">
-          <span className="material-symbols-outlined text-[18px] text-[var(--text-muted)]">
-            search
-          </span>
-          <input
-            className="w-48 bg-transparent text-sm text-[var(--text)] outline-none placeholder:text-[var(--text-muted)]"
-            placeholder="Global node search..."
-            type="text"
-          />
-        </div>
-        <button
-          className="rounded-xl bg-[var(--primary-soft)] px-4 py-2 text-sm font-semibold text-[var(--primary)] transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-70"
-          disabled={isBusy}
-          onClick={onExecute}
-          type="button"
-        >
-          {isBusy ? "Working..." : "Execute"}
-        </button>
         <div className="hidden items-center gap-2 sm:flex">
           <button
             className="rounded-full p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--primary)]"
