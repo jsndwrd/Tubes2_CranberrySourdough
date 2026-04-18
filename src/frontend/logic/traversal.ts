@@ -17,6 +17,16 @@ export function buildParsedSourceState(root: ElmtNode, label: string): Visualize
   };
 }
 
+export function buildTraversalResetState(root: ElmtNode): VisualizerComputedState {
+  const { pathMetaMap } = buildMeta(root);
+
+  return {
+    ...createEmptyComputedState(),
+    pathMetaMap,
+    statusText: "Traversal reset. DOM is still loaded."
+  };
+}
+
 export function buildTraversalErrorState(message: string): VisualizerComputedState {
   return {
     ...createEmptyComputedState(),

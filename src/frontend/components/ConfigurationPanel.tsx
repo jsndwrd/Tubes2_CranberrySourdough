@@ -2,6 +2,8 @@ import type { Algorithm, ResultMode, SourceMode } from "../types";
 
 type ConfigurationPanelProps = {
   algorithm: Algorithm;
+  canResetAll: boolean;
+  canResetTraversal: boolean;
   collapsed: boolean;
   sourceMode: SourceMode;
   resultMode: ResultMode;
@@ -20,9 +22,10 @@ type ConfigurationPanelProps = {
   onParseSource: (mode: SourceMode) => void;
   onRunTraversal: () => void;
   onReset: () => void;
+  onResetTraversal: () => void;
 };
 
-export function ConfigurationPanel({ algorithm, collapsed, sourceMode, resultMode, isBusy, urlInput, htmlInput, selector, limitInput, onAlgorithmChange, onSourceModeChange, onResultModeChange, onUrlInputChange, onHtmlInputChange, onSelectorChange, onLimitInputChange, onParseSource, onRunTraversal, onReset }: ConfigurationPanelProps) {
+export function ConfigurationPanel({ algorithm, canResetAll, canResetTraversal, collapsed, sourceMode, resultMode, isBusy, urlInput, htmlInput, selector, limitInput, onAlgorithmChange, onSourceModeChange, onResultModeChange, onUrlInputChange, onHtmlInputChange, onSelectorChange, onLimitInputChange, onParseSource, onRunTraversal, onReset, onResetTraversal }: ConfigurationPanelProps) {
   const tabButtonClass = "pb-2 text-sm font-medium transition-colors hover:text-[var(--primary)]";
   const primaryActionButtonClass = "flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--primary)] px-4 py-2.5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:shadow-[0_18px_30px_-22px_rgba(0,69,163,0.8)] hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70";
   const tertiaryActionButtonClass = "w-full rounded-xl border border-[var(--primary)]/16 bg-white px-4 py-2.5 text-sm font-medium text-[var(--primary)] transition hover:-translate-y-0.5 hover:border-[var(--primary)]/26 hover:bg-[var(--primary-soft)]/38 hover:shadow-[0_14px_24px_-20px_rgba(0,69,163,0.52)] disabled:cursor-not-allowed disabled:opacity-70";
@@ -231,10 +234,19 @@ export function ConfigurationPanel({ algorithm, collapsed, sourceMode, resultMod
               </button>
               <button
                 className={tertiaryActionButtonClass}
+                disabled={isBusy || !canResetTraversal}
+                onClick={onResetTraversal}
+                type="button"
+              >
+                Reset Traversal
+              </button>
+              <button
+                className={tertiaryActionButtonClass}
+                disabled={isBusy || !canResetAll}
                 onClick={onReset}
                 type="button"
               >
-                Reset
+                Reset All
               </button>
             </div>
           </section>

@@ -10,7 +10,7 @@ import { SettingsModal } from "./frontend/components/SettingsModal";
 import { TreeExplorer } from "./frontend/components/TreeExplorer";
 import { buildNodeDetails, findVisualRoot } from "./frontend/logic/dom";
 import { resolveSourceRoot } from "./frontend/logic/source";
-import { buildParsedSourceState, buildTraversalErrorState, executeTraversal, } from "./frontend/logic/traversal";
+import { buildParsedSourceState, buildTraversalErrorState, buildTraversalResetState, executeTraversal, } from "./frontend/logic/traversal";
 import { buildVisualLayout, buildVisualTree, } from "./frontend/logic/visualTree";
 import type { Algorithm, ResultMode, SourceMode } from "./frontend/types";
 
@@ -55,6 +55,23 @@ function App() {
   const visibleVisitedPaths = isTraversalAnimating ? animatedVisitedPaths : visitedPaths;
   const visibleMatchedPaths = isTraversalAnimating ? animatedMatchedPaths : matchedPaths;
   const visualStatusText = isTraversalAnimating ? `Animating ${algorithm} traversal...` : statusText;
+  const canResetTraversal = parsedRoot !== null;
+  const canResetAll =
+    algorithm !== "BFS" ||
+    resultMode !== "top" ||
+    urlInput !== "" ||
+    htmlInput !== "" ||
+    selector !== "" ||
+    limitInput !== "10" ||
+    parsedRoot !== null ||
+    pathMetaMap !== null ||
+    selectedPath !== null ||
+    traceEntries.length > 0 ||
+    results.length > 0 ||
+    visitedPaths.length > 0 ||
+    matchedPaths.length > 0 ||
+    isInspectorVisible ||
+    isTraversalAnimating;
   const visitedPathSet = useMemo(() => new Set(visibleVisitedPaths), [visibleVisitedPaths]);
   const matchedPathSet = useMemo(() => new Set(visibleMatchedPaths), [visibleMatchedPaths]);
   const flashingMatchedPathSet = useMemo(() => new Set(flashingMatchedPaths), [flashingMatchedPaths]);
@@ -264,6 +281,17 @@ function App() {
     }));
   }
 
+  function resetTraversal() {
+    if (!parsedRoot) {
+      return;
+    }
+
+    clearTraversalAnimationTimeouts();
+    setComputedState(buildTraversalResetState(parsedRoot));
+    syncTraversalAnimation([], []);
+    setIsInspectorVisible(false);
+  }
+
   return (
     <div className="bg-[var(--background)] xl:h-screen xl:overflow-hidden">
         <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
@@ -289,11 +317,14 @@ function App() {
             onLimitInputChange={setLimitInput}
             onParseSource={parseCurrentSource}
             onReset={resetForm}
+            onResetTraversal={resetTraversal}
             onResultModeChange={setResultMode}
             onRunTraversal={runTraversal}
             onSelectorChange={setSelector}
             onSourceModeChange={setSourceMode}
             onUrlInputChange={setUrlInput}
+            canResetAll={canResetAll}
+            canResetTraversal={canResetTraversal}
             resultMode={resultMode}
             selector={selector}
             sourceMode={sourceMode}
