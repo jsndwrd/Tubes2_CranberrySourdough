@@ -16,7 +16,7 @@ import type { Algorithm, ResultMode, SourceMode } from "./frontend/types";
 
 function App() {
   const [algorithm, setAlgorithm] = useState<Algorithm>("BFS");
-  const [sourceMode, setSourceMode] = useState<SourceMode>("html");
+  const [sourceMode, setSourceMode] = useState<SourceMode>("url");
   const [resultMode, setResultMode] = useState<ResultMode>("top");
   const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
@@ -58,6 +58,7 @@ function App() {
   const canResetTraversal = parsedRoot !== null;
   const canResetAll =
     algorithm !== "BFS" ||
+    sourceMode !== "url" ||
     resultMode !== "top" ||
     urlInput !== "" ||
     htmlInput !== "" ||
@@ -254,7 +255,7 @@ function App() {
   function resetForm() {
     clearTraversalAnimationTimeouts();
     setAlgorithm("BFS");
-    setSourceMode("html");
+    setSourceMode("url");
     setResultMode("top");
     setUrlInput("");
     setHtmlInput("");
