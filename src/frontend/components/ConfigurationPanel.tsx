@@ -215,7 +215,9 @@ export function ConfigurationPanel({ algorithm, canResetAll, canResetTraversal, 
               {resultMode === "top" ? (
                 <input
                   className="w-full rounded-xl border border-black/5 bg-[var(--surface-panel)] px-3.5 py-2.5 text-sm outline-none transition focus:border-[var(--primary)]"
+                  min={1}
                   onChange={(event) => onLimitInputChange(event.target.value)}
+                  step={1}
                   type="number"
                   value={limitInput}
                 />

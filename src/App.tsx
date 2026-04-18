@@ -112,6 +112,11 @@ function App() {
     traversalAnimationTimeoutsRef.current.push(timeoutId);
   }
 
+  function handleLimitInputChange(value: string) {
+    const parsedValue = Number.parseInt(value, 10);
+    setLimitInput(String(Number.isNaN(parsedValue) ? 1 : Math.max(1, parsedValue)));
+  }
+
   function syncTraversalAnimation(visitedSequence: string[], matchedSequence: string[]) {
     setAnimatedVisitedPaths(visitedSequence);
     setAnimatedMatchedPaths(matchedSequence);
@@ -315,7 +320,7 @@ function App() {
             limitInput={limitInput}
             onAlgorithmChange={setAlgorithm}
             onHtmlInputChange={setHtmlInput}
-            onLimitInputChange={setLimitInput}
+            onLimitInputChange={handleLimitInputChange}
             onParseSource={parseCurrentSource}
             onReset={resetForm}
             onResetTraversal={resetTraversal}
