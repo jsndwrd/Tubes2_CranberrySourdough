@@ -17,6 +17,13 @@ type TreeExplorerProps = {
 };
 
 const INSPECTOR_SHIFT_DURATION_MS = 300;
+const ZOOM_RESET_THRESHOLD = 0.001;
+
+type ViewportSnapshot = {
+  zoom: number;
+  scrollLeft: number;
+  scrollTop: number;
+};
 
 function TreeNode({ label, status, compact = false }: { label: string; status: NodeStatus; compact?: boolean }) {
   return (
@@ -122,6 +129,8 @@ function TreeNodeCard({
 }
 
 export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatchedPathSet, layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
+  const [canResetView, setCanResetView] = useState(false);
+  const defaultViewportRef = useRef<ViewportSnapshot | null>(null);
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
@@ -186,6 +195,37 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
     container.scrollTop = 0;
   }
 
+  function captureDefaultViewport(nextZoom = zoomRef.current) {
+    const container = viewportRef.current;
+    defaultViewportRef.current = {
+      zoom: nextZoom,
+      scrollLeft: container?.scrollLeft ?? 0,
+      scrollTop: container?.scrollTop ?? 0
+    };
+    setCanResetView(false);
+  }
+
+  function syncResetAvailability(nextZoom = zoomRef.current) {
+    const snapshot = defaultViewportRef.current;
+    setCanResetView(snapshot ? Math.abs(nextZoom - snapshot.zoom) > ZOOM_RESET_THRESHOLD : false);
+  }
+
+  function restoreDefaultViewport() {
+    const snapshot = defaultViewportRef.current;
+    const container = viewportRef.current;
+    if (!snapshot || !container) {
+      return;
+    }
+
+    zoomRef.current = snapshot.zoom;
+    flushSync(() => {
+      setZoom(snapshot.zoom);
+    });
+    container.scrollLeft = snapshot.scrollLeft;
+    container.scrollTop = snapshot.scrollTop;
+    setCanResetView(false);
+  }
+
   function applyZoom(nextZoom: number, focus?: { x: number; y: number }) {
     if (!layout) return;
   
@@ -220,9 +260,10 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
   
     container.scrollLeft = Math.max(nextScrollLeft, 0);
     container.scrollTop = Math.max(nextScrollTop, 0);
+    syncResetAvailability(clamped);
   }
 
-  function fitTree() {
+  function fitTree(storeAsDefault = false) {
     if (!layout || !viewportRef.current) {
       return;
     }
@@ -235,6 +276,12 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
     const fittedZoom = clampZoom(Math.min(widthRatio, heightRatio, 1));
     if (fittedZoom === zoomRef.current) {
       centerViewport(fittedZoom);
+      if (storeAsDefault) {
+        captureDefaultViewport(fittedZoom);
+        return;
+      }
+
+      syncResetAvailability(fittedZoom);
       return;
     }
 
@@ -243,12 +290,20 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
       setZoom(fittedZoom);
     });
     centerViewport(fittedZoom);
+    if (storeAsDefault) {
+      captureDefaultViewport(fittedZoom);
+      return;
+    }
+
+    syncResetAvailability(fittedZoom);
   }
 
   const scaledWidth = layout ? layout.width * zoom + VIEWPORT_PADDING * 2 : 0;
   const scaledHeight = layout ? layout.height * zoom + VIEWPORT_PADDING * 2 : 0;
-  const controlButtonClass =
-    "rounded-xl bg-white/90 px-3 py-2 text-xs font-medium text-[var(--text)] transition hover:bg-white";
+  const zoomControlButtonClass =
+    "flex h-10 w-10 items-center justify-center rounded-[1rem] bg-transparent text-[2rem] font-semibold leading-none text-[var(--text)] transition hover:bg-white hover:text-[var(--primary)] hover:shadow-[0_12px_20px_-18px_rgba(0,69,163,0.65)]";
+  const resetControlButtonClass =
+    "glass-panel ambient-shadow flex h-10 w-10 items-center justify-center rounded-[1rem] text-[var(--text-muted)] transition hover:-translate-y-0.5 hover:bg-white hover:text-[var(--primary)] hover:shadow-[0_14px_24px_-20px_rgba(0,69,163,0.52)]";
   const linkElements = useMemo(() => {
     if (!layout) {
       return null;
@@ -304,16 +359,32 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
   }, []);
 
   useEffect(() => {
+    if (!layout) {
+      defaultViewportRef.current = null;
+      setCanResetView(false);
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      captureDefaultViewport();
+    });
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [layout]);
+
+  useEffect(() => {
     if (autoFitSignal === 0 || !layout) {
       return;
     }
 
-    fitTree();
+    fitTree(true);
   }, [autoFitSignal, layout]);
 
   return (
     <div className="ambient-shadow relative flex flex-1 flex-col overflow-hidden rounded-2xl bg-[var(--surface-panel)]">
-      <div className="absolute inset-x-4 top-4 z-10 flex flex-col gap-2.5 md:flex-row md:items-start md:justify-between">
+      <div className="absolute left-4 right-[4.5rem] top-4 z-10 flex flex-col gap-2.5">
         <div className="flex flex-wrap gap-2">
           <div className="glass-panel flex items-center gap-2.5 rounded-full px-3.5 py-2">
             <span className="flex items-center gap-1 text-xs font-medium text-[var(--primary)]">
@@ -339,47 +410,39 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
             Scroll to pan, use buttons or Ctrl/Cmd + wheel to zoom
           </div>
         </div>
+      </div>
 
-        <div className="glass-panel flex items-center gap-1.5 rounded-2xl p-1.5">
+      <div className="absolute right-4 top-4 z-10 flex flex-col items-center gap-2">
+        <div className="glass-panel ambient-shadow flex flex-col overflow-hidden rounded-[1.25rem] p-1">
           <button
-            className={controlButtonClass}
-            onClick={() => applyZoom(zoomRef.current - ZOOM_STEP)}
-            type="button"
-          >
-            -
-          </button>
-          <button
-            className={controlButtonClass}
-            onClick={() => centerViewport(zoomRef.current)}
-            type="button"
-          >
-            Center
-          </button>
-          <button
-            className={controlButtonClass}
-            onClick={fitTree}
-            type="button"
-          >
-            Fit
-          </button>
-          <button
-            className={controlButtonClass}
-            onClick={() => applyZoom(1)}
-            type="button"
-          >
-            100%
-          </button>
-          <button
-            className="rounded-xl bg-[var(--primary-soft)] px-3 py-2 text-xs font-medium text-[var(--primary)] transition hover:brightness-95"
+            aria-label="Zoom in"
+            className={zoomControlButtonClass}
             onClick={() => applyZoom(zoomRef.current + ZOOM_STEP)}
             type="button"
           >
             +
           </button>
-          <div className="rounded-xl bg-[var(--surface-muted)] px-3 py-2 text-xs font-medium text-[var(--text-muted)]">
-            {Math.round(zoom * 100)}%
-          </div>
+          <div className="mx-1 h-px bg-[var(--outline)]/70" />
+          <button
+            aria-label="Zoom out"
+            className={zoomControlButtonClass}
+            onClick={() => applyZoom(zoomRef.current - ZOOM_STEP)}
+            type="button"
+          >
+            -
+          </button>
         </div>
+
+        {canResetView ? (
+          <button
+            aria-label="Reset view"
+            className={resetControlButtonClass}
+            onClick={restoreDefaultViewport}
+            type="button"
+          >
+            <span className="material-symbols-outlined text-[20px]">home</span>
+          </button>
+        ) : null}
       </div>
 
       <div
