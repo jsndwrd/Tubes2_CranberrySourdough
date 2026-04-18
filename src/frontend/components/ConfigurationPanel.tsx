@@ -36,11 +36,13 @@ export function ConfigurationPanel({ algorithm, collapsed, sourceMode, resultMod
       <aside
         aria-hidden={collapsed}
         className={[
-          "w-full border-b border-black/5 bg-[var(--surface-low)] p-4 transition-[transform,opacity] duration-300 ease-out xl:absolute xl:inset-y-0 xl:left-0 xl:w-[19rem] xl:overflow-y-auto xl:border-b-0 xl:border-r",
-          collapsed ? "pointer-events-none xl:-translate-x-full xl:opacity-0" : "xl:translate-x-0 xl:opacity-100"
+          "w-full overflow-hidden border-b border-black/5 bg-[var(--surface-low)] transition-[max-height,transform,opacity] duration-300 ease-out xl:absolute xl:inset-y-0 xl:left-0 xl:w-[19rem] xl:overflow-y-auto xl:border-b-0 xl:border-r",
+          collapsed
+            ? "max-h-0 border-b-0 opacity-0 pointer-events-none xl:max-h-none xl:-translate-x-full"
+            : "max-h-[120rem] opacity-100 xl:max-h-none xl:translate-x-0"
         ].join(" ")}
       >
-        <div className="space-y-5">
+        <div className="space-y-5 p-4">
           <section className="space-y-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)]">
               <span className="material-symbols-outlined text-[16px]">tune</span>
