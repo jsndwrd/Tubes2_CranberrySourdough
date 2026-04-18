@@ -1,7 +1,7 @@
 import { bfsWalk, dfsWalk } from "../../lib/search";
 import type { ElmtNode, Node } from "../../lib/tree";
 import { createEmptyComputedState, emptySummary } from "../constants";
-import type { Algorithm, ResultItem, TraceEntry, VisualizerComputedState } from "../types";
+import type { Algorithm, ResultItem, ResultMode, TraceEntry, VisualizerComputedState } from "../types";
 import { buildMeta, buildNodeDetails, formatTime, getDefaultSelectedPath, shortLabel } from "./dom";
 import { matchesGroup, parseSelector } from "./selectors";
 
@@ -40,10 +40,12 @@ type ExecuteTraversalInput = {
   root: ElmtNode;
   label: string;
   algorithm: Algorithm;
+  limit: number;
+  resultMode: ResultMode;
   selector: string;
 };
 
-export function executeTraversal({ root, label, algorithm, selector }: ExecuteTraversalInput): VisualizerComputedState {
+export function executeTraversal({ root, label, algorithm, limit, resultMode, selector }: ExecuteTraversalInput): VisualizerComputedState {
   const parsedSelector = parseSelector(selector);
   if (parsedSelector === null) {
     throw new Error("Selector format is not supported.");
@@ -65,6 +67,7 @@ export function executeTraversal({ root, label, algorithm, selector }: ExecuteTr
   let visitedCount = 0;
   let maxDepth = 0;
   const startedAt = performance.now();
+  const matchLimit = resultMode === "top" ? Math.max(1, limit) : Number.POSITIVE_INFINITY;
 
   const visit = (node: Node, depth: number) => {
     visitedCount += 1;
@@ -109,6 +112,10 @@ export function executeTraversal({ root, label, algorithm, selector }: ExecuteTr
       text: `Node matched selector: ${result.shortLabel}`,
       indent: Math.min(meta.depth, 6)
     });
+
+    if (matchCount >= matchLimit) {
+      return true;
+    }
   };
 
   if (algorithm === "BFS") {

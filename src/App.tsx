@@ -226,7 +226,7 @@ function App() {
     setIsBusy(true);
     try {
       const { root, label } = await resolveCurrentSource(sourceMode);
-      const nextState = executeTraversal({root, label, algorithm, selector,});
+      const nextState = executeTraversal({ root, label, algorithm, limit: limitValue, resultMode, selector });
 
       setParsedRoot(root);
       setComputedState(nextState);
