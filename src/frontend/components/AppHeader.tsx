@@ -6,6 +6,8 @@ type AppHeaderProps = {
 };
 
 export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onOpenSettings, onToggleConfiguration }: AppHeaderProps) {
+  const actionButtonClass = "rounded-full p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--primary)]";
+
   return (
     <header className="sticky top-0 z-30 flex items-center justify-between border-b border-black/5 bg-[rgba(248,249,250,0.94)] px-4 py-3 backdrop-blur md:px-5 xl:relative">
       <button
@@ -31,19 +33,22 @@ export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onOpenSetting
       </div>
       <div className="flex items-center gap-3">
         <button
-          className="rounded-full p-2 text-[var(--text-muted)] transition hover:bg-[var(--surface-muted)] hover:text-[var(--primary)]"
+          aria-label="Open settings"
+          className={actionButtonClass}
           onClick={onOpenSettings}
+          title="Settings"
           type="button"
         >
           <span className="material-symbols-outlined text-[18px]">settings</span>
         </button>
         <button
-          className="flex items-center gap-2 rounded-full border border-black/5 bg-white px-3.5 py-2 text-sm font-medium text-[var(--text-muted)] shadow-[0_12px_24px_-20px_rgba(15,23,42,0.22)] transition hover:border-[var(--primary)]/18 hover:bg-[var(--primary-soft)]/36 hover:text-[var(--primary)]"
+          aria-label="Open about dialog"
+          className={actionButtonClass}
           onClick={onOpenAbout}
+          title="About"
           type="button"
         >
           <span className="material-symbols-outlined text-[18px]">info</span>
-          <span className="hidden sm:inline">About</span>
         </button>
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--surface-strong)] text-sm font-semibold text-[var(--text)]">
           BP
