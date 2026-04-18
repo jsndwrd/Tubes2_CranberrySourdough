@@ -3,15 +3,40 @@ import type { ElmtNode, Node } from "./tree";
 // Preorder
 export function dfsWalk(
   root: Node,
-  visit: (node: Node, depth: number) => void,
+  visit: (node: Node, depth: number) => boolean | void,
   depth = 0,
 ): void {
-  visit(root, depth);
+  if (visit(root, depth)) {
+    return;
+  }
+
   if (root.type === "element") {
     for (const child of root.children) {
-      dfsWalk(child, visit, depth + 1);
+      if (dfsWalkUntil(child, visit, depth + 1)) {
+        return;
+      }
     }
   }
+}
+
+function dfsWalkUntil(
+  root: Node,
+  visit: (node: Node, depth: number) => boolean | void,
+  depth: number,
+): boolean {
+  if (visit(root, depth)) {
+    return true;
+  }
+
+  if (root.type === "element") {
+    for (const child of root.children) {
+      if (dfsWalkUntil(child, visit, depth + 1)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 // DFS
@@ -35,13 +60,15 @@ export function dfs(
 
 export function bfsWalk(
   root: Node,
-  visit: (node: Node, depth: number) => void,
+  visit: (node: Node, depth: number) => boolean | void,
 ): void {
   const queue: { node: Node; depth: number }[] = [{ node: root, depth: 0 }];
   let i = 0;
   while (i < queue.length) {
     const { node, depth } = queue[i++];
-    visit(node, depth);
+    if (visit(node, depth)) {
+      return;
+    }
     if (node.type === "element") {
       const next = depth + 1;
       for (const child of node.children) {
