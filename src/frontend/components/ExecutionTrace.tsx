@@ -44,6 +44,43 @@ function clampTraceHeight(height: number) {
   return Math.min(getMaxTraceHeight(), Math.max(COLLAPSED_TRACE_HEIGHT_PX, Math.round(height)));
 }
 
+function formatTraceExport(traceEntries: TraceEntry[], summary: RunSummary) {
+  const lines = [
+    "Execution Trace",
+    `Generated: ${new Date().toLocaleString()}`,
+    `Info: ${summary.info}`,
+    `Match: ${summary.match}`,
+    `Error: ${summary.error}`,
+    `Visited: ${summary.visited}`,
+    `Execution: ${summary.execution}`,
+    `Max depth: ${summary.maxDepth}`,
+    "",
+    "Entries"
+  ];
+
+  for (const entry of traceEntries) {
+    const indent = " ".repeat((entry.indent ?? 0) * 2);
+    lines.push(`${entry.time} [${entry.level}] ${indent}${entry.text}`);
+  }
+
+  return lines.join("\n");
+}
+
+function exportTraceAsTxt(traceEntries: TraceEntry[], summary: RunSummary) {
+  const blob = new Blob([formatTraceExport(traceEntries, summary)], {
+    type: "text/plain;charset=utf-8"
+  });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+
+  link.href = url;
+  link.download = `execution-trace-${new Date().toISOString().replace(/[:.]/g, "-")}.txt`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 export function ExecutionTrace({ isOpen, traceEntries, summary, onToggle, onClear }: ExecutionTraceProps) {
   const [openHeight, setOpenHeight] = useState(getDefaultTraceHeight);
   const [isResizing, setIsResizing] = useState(false);
@@ -189,8 +226,13 @@ export function ExecutionTrace({ isOpen, traceEntries, summary, onToggle, onClea
               >
                 Clear
               </button>
-              <button className="opacity-70" disabled type="button">
-                Export CSV
+              <button
+                className="transition hover:text-white disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={traceEntries.length === 0}
+                onClick={() => exportTraceAsTxt(traceEntries, summary)}
+                type="button"
+              >
+                Export TXT
               </button>
             </div>
           ) : null}

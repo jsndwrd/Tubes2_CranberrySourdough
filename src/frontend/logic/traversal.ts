@@ -66,13 +66,11 @@ export function executeTraversal({ root, label, algorithm, limit, resultMode, se
   let matchCount = 0;
   let visitedCount = 0;
   let maxDepth = 0;
+  let stoppedByLimit = false;
   const startedAt = performance.now();
   const matchLimit = resultMode === "top" ? Math.max(1, limit) : Number.POSITIVE_INFINITY;
 
-  const visit = (node: Node, depth: number) => {
-    visitedCount += 1;
-    maxDepth = Math.max(maxDepth, depth);
-
+  const visit = (node: Node) => {
     if (node.type !== "element" || node.tag === "#document") {
       return;
     }
@@ -82,6 +80,8 @@ export function executeTraversal({ root, label, algorithm, limit, resultMode, se
       return;
     }
 
+    visitedCount += 1;
+    maxDepth = Math.max(maxDepth, meta.depth);
     nextVisitedPaths.add(meta.pathKey);
     nextTrace.push({
       time: formatTime(),
@@ -114,6 +114,7 @@ export function executeTraversal({ root, label, algorithm, limit, resultMode, se
     });
 
     if (matchCount >= matchLimit) {
+      stoppedByLimit = resultMode === "top";
       return true;
     }
   };
@@ -125,6 +126,18 @@ export function executeTraversal({ root, label, algorithm, limit, resultMode, se
   }
 
   const execution = `${Math.max(1, Math.round(performance.now() - startedAt))}ms`;
+  const completionMessage = stoppedByLimit
+    ? `Traversal stopped after reaching top ${matchLimit} match${matchLimit === 1 ? "" : "es"}.`
+    : matchCount > 0
+      ? `Traversal finished on ${label} with ${matchCount} match${matchCount === 1 ? "" : "es"}.`
+      : `Traversal finished on ${label} with no matches.`;
+
+  nextTrace.push({
+    time: formatTime(),
+    level: "INFO",
+    text: `${completionMessage} Visited ${visitedCount} node${visitedCount === 1 ? "" : "s"} in ${execution}.`
+  });
+  infoCount += 1;
 
   return {
     results: nextResults,
@@ -139,10 +152,7 @@ export function executeTraversal({ root, label, algorithm, limit, resultMode, se
       execution,
       maxDepth: Math.max(maxDepth, elements.length > 0 ? 1 : 0)
     },
-    statusText:
-      matchCount > 0
-        ? `Traversal finished on ${label}.`
-        : `Traversal finished on ${label} with no matches.`,
+    statusText: completionMessage,
     visitedPaths: [...nextVisitedPaths],
     matchedPaths: [...nextMatchedPaths]
   };
