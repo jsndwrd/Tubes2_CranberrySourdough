@@ -18,6 +18,8 @@ type TreeExplorerProps = {
 
 const INSPECTOR_SHIFT_DURATION_MS = 300;
 const ZOOM_RESET_THRESHOLD = 0.001;
+const SCROLL_RESET_THRESHOLD = 1;
+const DRAG_PAN_THRESHOLD_PX = 4;
 
 type ViewportSnapshot = {
   zoom: number;
@@ -25,14 +27,27 @@ type ViewportSnapshot = {
   scrollTop: number;
 };
 
-function TreeNode({ label, status, compact = false }: { label: string; status: NodeStatus; compact?: boolean }) {
+type PanState = {
+  didDrag: boolean;
+  pointerId: number;
+  startScrollLeft: number;
+  startScrollTop: number;
+  startX: number;
+  startY: number;
+};
+
+type WebkitGestureEvent = Event & {
+  clientX: number;
+  clientY: number;
+  scale: number;
+};
+
+function TreeNode({ label, status }: { label: string; status: NodeStatus }) {
   return (
     <div
       className={[
         "flex items-center justify-center rounded-xl border text-xs font-semibold",
-        compact
-          ? "h-9 min-w-[4rem] px-3"
-          : "h-11 min-w-[5rem] px-4",
+        "h-11 min-w-[5rem] px-4",
         statusStyles[status].card
       ].join(" ")}
     >
@@ -130,12 +145,21 @@ function TreeNodeCard({
 
 export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatchedPathSet, layout, getStatus, isInspectorVisible, onBackgroundClick, onSelect, statusText }: TreeExplorerProps) {
   const [canResetView, setCanResetView] = useState(false);
+  const [isPanning, setIsPanning] = useState(false);
   const defaultViewportRef = useRef<ViewportSnapshot | null>(null);
   const [zoom, setZoom] = useState(1);
   const viewportRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
+  const applyZoomRef = useRef<(nextZoom: number, focus?: { x: number; y: number }) => void>(() => undefined);
+  const animateInspectorShiftRef = useRef<(delta: number) => void>(() => undefined);
+  const fitTreeRef = useRef<(storeAsDefault?: boolean) => void>(() => undefined);
   const inspectorAnimationFrameRef = useRef<number | null>(null);
   const previousInspectorVisibleRef = useRef(isInspectorVisible);
+  const panStateRef = useRef<PanState | null>(null);
+  const suppressClickRef = useRef(false);
+  const suppressClickTimeoutRef = useRef<number | null>(null);
+  const gestureStartZoomRef = useRef<number | null>(null);
+  const gestureActiveRef = useRef(false);
 
   zoomRef.current = zoom;
 
@@ -184,6 +208,8 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
     inspectorAnimationFrameRef.current = requestAnimationFrame(step);
   }
 
+  animateInspectorShiftRef.current = animateInspectorShift;
+
   function centerViewport(nextZoom: number) {
     if (!layout || !viewportRef.current) {
       return;
@@ -205,9 +231,19 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
     setCanResetView(false);
   }
 
-  function syncResetAvailability(nextZoom = zoomRef.current) {
+  function syncResetAvailability(
+    nextZoom = zoomRef.current,
+    scrollLeft = viewportRef.current?.scrollLeft ?? 0,
+    scrollTop = viewportRef.current?.scrollTop ?? 0
+  ) {
     const snapshot = defaultViewportRef.current;
-    setCanResetView(snapshot ? Math.abs(nextZoom - snapshot.zoom) > ZOOM_RESET_THRESHOLD : false);
+    setCanResetView(
+      snapshot
+        ? Math.abs(nextZoom - snapshot.zoom) > ZOOM_RESET_THRESHOLD ||
+            Math.abs(scrollLeft - snapshot.scrollLeft) > SCROLL_RESET_THRESHOLD ||
+            Math.abs(scrollTop - snapshot.scrollTop) > SCROLL_RESET_THRESHOLD
+        : false
+    );
   }
 
   function restoreDefaultViewport() {
@@ -228,39 +264,72 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
 
   function applyZoom(nextZoom: number, focus?: { x: number; y: number }) {
     if (!layout) return;
-  
+
     const container = viewportRef.current;
     const clamped = clampZoom(nextZoom);
     if (clamped === zoomRef.current) return;
-  
+
     if (!container) {
       zoomRef.current = clamped;
       setZoom(clamped);
       return;
     }
 
-    const scrollLeft = container.scrollLeft;
-    const scrollTop = container.scrollTop;
-    const currentZoom = zoomRef.current;
-  
     const focusX = focus?.x ?? container.clientWidth / 2;
     const focusY = focus?.y ?? container.clientHeight / 2;
 
-    const contentX = (scrollLeft + focusX - VIEWPORT_PADDING) / currentZoom;
-    const contentY = (scrollTop + focusY - VIEWPORT_PADDING) / currentZoom;
+    const contentX = (container.scrollLeft + focusX - VIEWPORT_PADDING) / zoomRef.current;
+    const contentY = (container.scrollTop + focusY - VIEWPORT_PADDING) / zoomRef.current;
 
     const nextScrollLeft = contentX * clamped + VIEWPORT_PADDING - focusX;
     const nextScrollTop = contentY * clamped + VIEWPORT_PADDING - focusY;
-  
+
     zoomRef.current = clamped;
-  
+
     flushSync(() => {
       setZoom(clamped);
     });
-  
-    container.scrollLeft = Math.max(nextScrollLeft, 0);
-    container.scrollTop = Math.max(nextScrollTop, 0);
-    syncResetAvailability(clamped);
+
+    const resolvedScrollLeft = Math.max(nextScrollLeft, 0);
+    const resolvedScrollTop = Math.max(nextScrollTop, 0);
+
+    container.scrollLeft = resolvedScrollLeft;
+    container.scrollTop = resolvedScrollTop;
+    syncResetAvailability(clamped, resolvedScrollLeft, resolvedScrollTop);
+  }
+
+  applyZoomRef.current = applyZoom;
+
+  function clearSuppressedClick() {
+    if (suppressClickTimeoutRef.current !== null) {
+      window.clearTimeout(suppressClickTimeoutRef.current);
+      suppressClickTimeoutRef.current = null;
+    }
+
+    suppressClickRef.current = false;
+  }
+
+  function suppressNextClick() {
+    clearSuppressedClick();
+    suppressClickRef.current = true;
+    suppressClickTimeoutRef.current = window.setTimeout(() => {
+      suppressClickRef.current = false;
+      suppressClickTimeoutRef.current = null;
+    }, 0);
+  }
+
+  function finishPanning() {
+    const panState = panStateRef.current;
+    if (!panState) {
+      return;
+    }
+
+    panStateRef.current = null;
+    setIsPanning(false);
+
+    if (panState.didDrag) {
+      suppressNextClick();
+    }
   }
 
   function fitTree(storeAsDefault = false) {
@@ -297,6 +366,8 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
 
     syncResetAvailability(fittedZoom);
   }
+
+  fitTreeRef.current = fitTree;
 
   const scaledWidth = layout ? layout.width * zoom + VIEWPORT_PADDING * 2 : 0;
   const scaledHeight = layout ? layout.height * zoom + VIEWPORT_PADDING * 2 : 0;
@@ -349,14 +420,58 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
       return;
     }
 
-    animateInspectorShift(isInspectorVisible ? INSPECTOR_PANEL_WIDTH_PX : -INSPECTOR_PANEL_WIDTH_PX);
+    animateInspectorShiftRef.current(isInspectorVisible ? INSPECTOR_PANEL_WIDTH_PX : -INSPECTOR_PANEL_WIDTH_PX);
   }, [isInspectorVisible]);
 
   useEffect(() => {
     return () => {
       cancelInspectorShiftAnimation();
+      clearSuppressedClick();
     };
   }, []);
+
+  useEffect(() => {
+    const container = viewportRef.current;
+    if (!container || !layout || typeof window === "undefined") {
+      return;
+    }
+
+    const handleGestureStart = (event: Event) => {
+      const gestureEvent = event as WebkitGestureEvent;
+      gestureActiveRef.current = true;
+      gestureStartZoomRef.current = zoomRef.current;
+      gestureEvent.preventDefault();
+    };
+
+    const handleGestureChange = (event: Event) => {
+      if (gestureStartZoomRef.current === null) {
+        return;
+      }
+
+      const gestureEvent = event as WebkitGestureEvent;
+      const bounds = container.getBoundingClientRect();
+      gestureEvent.preventDefault();
+      applyZoomRef.current(gestureStartZoomRef.current * gestureEvent.scale, {
+        x: gestureEvent.clientX - bounds.left,
+        y: gestureEvent.clientY - bounds.top
+      });
+    };
+
+    const handleGestureEnd = () => {
+      gestureActiveRef.current = false;
+      gestureStartZoomRef.current = null;
+    };
+
+    container.addEventListener("gesturestart", handleGestureStart, { passive: false });
+    container.addEventListener("gesturechange", handleGestureChange, { passive: false });
+    container.addEventListener("gestureend", handleGestureEnd);
+
+    return () => {
+      container.removeEventListener("gesturestart", handleGestureStart);
+      container.removeEventListener("gesturechange", handleGestureChange);
+      container.removeEventListener("gestureend", handleGestureEnd);
+    };
+  }, [layout]);
 
   useEffect(() => {
     if (!layout) {
@@ -379,7 +494,7 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
       return;
     }
 
-    fitTree(true);
+    fitTreeRef.current(true);
   }, [autoFitSignal, layout]);
 
   return (
@@ -405,9 +520,6 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
             <span className="text-xs font-medium text-[var(--text)]">
               Max: {layout ? layout.maxDepth : "-"}
             </span>
-          </div>
-          <div className="glass-panel rounded-full px-3.5 py-2 text-xs font-medium text-[var(--text-muted)]">
-            Scroll to pan, use buttons or Ctrl/Cmd + wheel to zoom
           </div>
         </div>
       </div>
@@ -446,10 +558,90 @@ export function TreeExplorer({ activeTraversalPath, autoFitSignal, flashingMatch
       </div>
 
       <div
-        className="tree-viewport-grid flex flex-1 overflow-auto px-4 pb-5 pt-24 md:pb-6"
+        className={[
+          "tree-viewport-grid flex flex-1 overflow-auto px-4 pb-5 pt-24 md:pb-6",
+          layout ? (isPanning ? "cursor-grabbing select-none" : "cursor-grab") : ""
+        ].join(" ")}
         onClick={onBackgroundClick}
+        onClickCapture={(event) => {
+          if (!suppressClickRef.current) {
+            return;
+          }
+
+          clearSuppressedClick();
+          event.preventDefault();
+          event.stopPropagation();
+        }}
+        onPointerCancel={(event) => {
+          if (panStateRef.current?.pointerId !== event.pointerId) {
+            return;
+          }
+
+          finishPanning();
+        }}
+        onPointerDown={(event) => {
+          if (!layout || event.button !== 0) {
+            return;
+          }
+
+          clearSuppressedClick();
+          panStateRef.current = {
+            didDrag: false,
+            pointerId: event.pointerId,
+            startScrollLeft: event.currentTarget.scrollLeft,
+            startScrollTop: event.currentTarget.scrollTop,
+            startX: event.clientX,
+            startY: event.clientY
+          };
+        }}
+        onPointerMove={(event) => {
+          const panState = panStateRef.current;
+          if (!panState || panState.pointerId !== event.pointerId) {
+            return;
+          }
+
+          const deltaX = event.clientX - panState.startX;
+          const deltaY = event.clientY - panState.startY;
+
+          if (!panState.didDrag && Math.hypot(deltaX, deltaY) < DRAG_PAN_THRESHOLD_PX) {
+            return;
+          }
+
+          if (!panState.didDrag) {
+            panState.didDrag = true;
+            setIsPanning(true);
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }
+
+          event.preventDefault();
+          event.currentTarget.scrollLeft = panState.startScrollLeft - deltaX;
+          event.currentTarget.scrollTop = panState.startScrollTop - deltaY;
+          syncResetAvailability(
+            zoomRef.current,
+            event.currentTarget.scrollLeft,
+            event.currentTarget.scrollTop
+          );
+        }}
+        onPointerUp={(event) => {
+          if (panStateRef.current?.pointerId !== event.pointerId) {
+            return;
+          }
+
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+            event.currentTarget.releasePointerCapture(event.pointerId);
+          }
+
+          finishPanning();
+        }}
+        onLostPointerCapture={(event) => {
+          if (panStateRef.current?.pointerId !== event.pointerId) {
+            return;
+          }
+
+          finishPanning();
+        }}
         onWheel={(event) => {
-          if (!(event.ctrlKey || event.metaKey)) {
+          if (!layout || gestureActiveRef.current) {
             return;
           }
 
