@@ -31,7 +31,7 @@ export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onOpenSetting
           </p>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1.5">
         <button
           aria-label="Open settings"
           className={actionButtonClass}
@@ -50,9 +50,6 @@ export function AppHeader({ isConfigurationCollapsed, onOpenAbout, onOpenSetting
         >
           <span className="material-symbols-outlined text-[18px]">info</span>
         </button>
-        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[var(--surface-strong)] text-sm font-semibold text-[var(--text)]">
-          BP
-        </div>
       </div>
     </header>
   );
