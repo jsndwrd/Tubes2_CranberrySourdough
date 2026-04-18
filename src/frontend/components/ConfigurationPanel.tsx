@@ -183,21 +183,9 @@ export function ConfigurationPanel({ algorithm, canResetAll, canResetTraversal, 
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <label className="text-sm font-medium text-[var(--text-muted)]">
-                  Limit Results (N)
+                  Limit Results
                 </label>
                 <div className={segmentedContainerClass}>
-                  <button
-                    className={[
-                      segmentedButtonBaseClass,
-                      resultMode === "top"
-                        ? selectedHighlightClass
-                        : "border-transparent text-[var(--text-muted)] hover:border-[var(--primary)]/12 hover:bg-[var(--primary-soft)]/38 hover:text-[var(--primary)]"
-                    ].join(" ")}
-                    onClick={() => onResultModeChange("top")}
-                    type="button"
-                  >
-                    Top N
-                  </button>
                   <button
                     className={[
                       segmentedButtonBaseClass,
@@ -209,6 +197,18 @@ export function ConfigurationPanel({ algorithm, canResetAll, canResetTraversal, 
                     type="button"
                   >
                     All
+                  </button>
+                  <button
+                    className={[
+                      segmentedButtonBaseClass,
+                      resultMode === "top"
+                        ? selectedHighlightClass
+                        : "border-transparent text-[var(--text-muted)] hover:border-[var(--primary)]/12 hover:bg-[var(--primary-soft)]/38 hover:text-[var(--primary)]"
+                    ].join(" ")}
+                    onClick={() => onResultModeChange("top")}
+                    type="button"
+                  >
+                    Top N
                   </button>
                 </div>
               </div>
