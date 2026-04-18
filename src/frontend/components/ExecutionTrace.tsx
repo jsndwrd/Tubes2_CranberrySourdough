@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import type { RunSummary, TraceEntry } from "../types";
 
 type ExecutionTraceProps = {
@@ -8,14 +9,160 @@ type ExecutionTraceProps = {
   onClear: () => void;
 };
 
+const COLLAPSED_TRACE_HEIGHT_PX = 60;
+const DEFAULT_MOBILE_TRACE_HEIGHT_PX = 320;
+const DEFAULT_DESKTOP_TRACE_HEIGHT_PX = 256;
+const MAX_TRACE_HEIGHT_RATIO = 0.6;
+const COLLAPSE_SNAP_THRESHOLD_PX = 12;
+
+type ResizeState = {
+  pointerId: number;
+  startHeight: number;
+  startY: number;
+};
+
+function getDefaultTraceHeight() {
+  if (typeof window !== "undefined" && window.innerWidth >= 1280) {
+    return DEFAULT_DESKTOP_TRACE_HEIGHT_PX;
+  }
+
+  return DEFAULT_MOBILE_TRACE_HEIGHT_PX;
+}
+
+function getMaxTraceHeight() {
+  if (typeof window === "undefined") {
+    return DEFAULT_MOBILE_TRACE_HEIGHT_PX;
+  }
+
+  return Math.max(
+    COLLAPSED_TRACE_HEIGHT_PX,
+    Math.round(window.innerHeight * MAX_TRACE_HEIGHT_RATIO)
+  );
+}
+
+function clampTraceHeight(height: number) {
+  return Math.min(getMaxTraceHeight(), Math.max(COLLAPSED_TRACE_HEIGHT_PX, Math.round(height)));
+}
+
 export function ExecutionTrace({ isOpen, traceEntries, summary, onToggle, onClear }: ExecutionTraceProps) {
+  const [openHeight, setOpenHeight] = useState(getDefaultTraceHeight);
+  const [isResizing, setIsResizing] = useState(false);
+  const openHeightRef = useRef(getDefaultTraceHeight());
+  const lastExpandedHeightRef = useRef(openHeight);
+  const resizeStateRef = useRef<ResizeState | null>(null);
+
+  function resetDocumentResizeState() {
+    document.body.style.removeProperty("cursor");
+    document.body.style.removeProperty("user-select");
+  }
+
+  function finishResize() {
+    const resizeState = resizeStateRef.current;
+    if (!resizeState) {
+      return;
+    }
+
+    resizeStateRef.current = null;
+    setIsResizing(false);
+    resetDocumentResizeState();
+
+    const finalHeight = clampTraceHeight(openHeightRef.current);
+    if (finalHeight <= COLLAPSED_TRACE_HEIGHT_PX + COLLAPSE_SNAP_THRESHOLD_PX) {
+      setOpenHeight(lastExpandedHeightRef.current);
+      if (isOpen) {
+        onToggle();
+      }
+      return;
+    }
+
+    lastExpandedHeightRef.current = finalHeight;
+    setOpenHeight(finalHeight);
+  }
+
+  useEffect(() => {
+    openHeightRef.current = openHeight;
+  }, [openHeight]);
+
+  useEffect(() => {
+    if (openHeight > COLLAPSED_TRACE_HEIGHT_PX + COLLAPSE_SNAP_THRESHOLD_PX) {
+      lastExpandedHeightRef.current = openHeight;
+    }
+  }, [openHeight]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const syncHeight = () => {
+      setOpenHeight((current) => clampTraceHeight(current));
+      lastExpandedHeightRef.current = clampTraceHeight(lastExpandedHeightRef.current);
+    };
+
+    window.addEventListener("resize", syncHeight);
+
+    return () => {
+      window.removeEventListener("resize", syncHeight);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      resetDocumentResizeState();
+    };
+  }, []);
+
+  const currentHeight = isOpen ? clampTraceHeight(openHeight) : COLLAPSED_TRACE_HEIGHT_PX;
+
   return (
     <footer
       className={[
-        "flex flex-col bg-[#0f1726] text-slate-300 transition-[height] duration-300",
-        isOpen ? "h-[20rem] xl:h-64" : "h-[3.75rem]"
+        "relative flex shrink-0 flex-col overflow-hidden bg-[#0f1726] text-slate-300",
+        isResizing ? "" : "transition-[height] duration-300"
       ].join(" ")}
+      style={{ height: currentHeight }}
     >
+      {isOpen ? (
+        <div
+          className="absolute inset-x-0 top-0 z-10 h-3 cursor-row-resize touch-none"
+          onPointerCancel={finishResize}
+          onPointerDown={(event) => {
+            resizeStateRef.current = {
+              pointerId: event.pointerId,
+              startHeight: openHeightRef.current,
+              startY: event.clientY
+            };
+            setIsResizing(true);
+            document.body.style.cursor = "ns-resize";
+            document.body.style.userSelect = "none";
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const resizeState = resizeStateRef.current;
+            if (!resizeState || resizeState.pointerId !== event.pointerId) {
+              return;
+            }
+
+            setOpenHeight(
+              clampTraceHeight(resizeState.startHeight + (resizeState.startY - event.clientY))
+            );
+          }}
+          onPointerUp={(event) => {
+            if (resizeStateRef.current?.pointerId !== event.pointerId) {
+              return;
+            }
+
+            if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+              event.currentTarget.releasePointerCapture(event.pointerId);
+            }
+
+            finishResize();
+          }}
+        >
+          <div className="pointer-events-none mx-auto mt-1 h-1 w-14 rounded-full bg-white/14" />
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between gap-4 bg-[#182236] px-4 py-3">
         <div className="flex flex-wrap items-center gap-4">
           <button
@@ -57,7 +204,7 @@ export function ExecutionTrace({ isOpen, traceEntries, summary, onToggle, onClea
 
       {isOpen ? (
         traceEntries.length > 0 ? (
-          <div className="flex-1 overflow-y-auto px-4 py-4 font-code text-xs leading-relaxed">
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 font-code text-xs leading-relaxed">
             <div className="space-y-2">
               {traceEntries.map((entry, index) => {
                 const levelClass =
@@ -84,7 +231,7 @@ export function ExecutionTrace({ isOpen, traceEntries, summary, onToggle, onClea
             </div>
           </div>
         ) : (
-          <div className="flex flex-1 items-center justify-center px-4 py-4 text-sm leading-relaxed">
+          <div className="flex min-h-0 flex-1 items-center justify-center px-4 py-4 text-sm leading-relaxed">
             <div className="space-y-2 text-center">
               <p className="font-headline text-lg font-semibold text-white">Trace is empty</p>
               <p className="max-w-md text-slate-400">
