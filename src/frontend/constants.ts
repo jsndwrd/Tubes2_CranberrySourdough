@@ -1,4 +1,8 @@
-import type { VisualizerComputedState, VisualizerSettings, RunSummary } from "./types";
+import type {
+  VisualizerComputedState,
+  VisualizerSettings,
+  RunSummary,
+} from "./types";
 
 export const defaultStatusText = "No traversal data loaded";
 export const INSPECTOR_PANEL_WIDTH = "24rem";
@@ -15,7 +19,7 @@ export const emptySummary: RunSummary = {
   error: 0,
   visited: 0,
   execution: "-",
-  maxDepth: 0
+  maxDepth: 0,
 };
 
 export function createEmptyComputedState(): VisualizerComputedState {
@@ -27,7 +31,7 @@ export function createEmptyComputedState(): VisualizerComputedState {
     summary: emptySummary,
     statusText: defaultStatusText,
     visitedPaths: [],
-    matchedPaths: []
+    matchedPaths: [],
   };
 }
 
@@ -37,6 +41,7 @@ export function createDefaultSettings(): VisualizerSettings {
     traversalAnimationStepMs: TRAVERSAL_ANIMATION_STEP_MS,
     openInspectorAfterTraversal: true,
     openTraceAfterTraversal: true,
-    autoFitTreeAfterTraversal: false
+    autoFitTreeAfterTraversal: false,
+    multithreadTraversal: false,
   };
 }
