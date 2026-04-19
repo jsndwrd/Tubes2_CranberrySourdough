@@ -11,11 +11,6 @@
   bun dev
   ```
 
-- Docker
-  ```bash
-  docker build -t cranberrysourdough:latest .
-  docker run --rm -p 8080:80 cranberrysourdough:latest
-  ```
 
 ## Authors
 

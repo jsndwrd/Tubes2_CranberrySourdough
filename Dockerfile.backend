@@ -1,0 +1,8 @@
+FROM oven/bun:1.2.21-alpine
+WORKDIR /app
+
+COPY backend/server.ts ./backend/server.ts
+
+EXPOSE 3000
+CMD ["bun", "backend/server.ts"]
+

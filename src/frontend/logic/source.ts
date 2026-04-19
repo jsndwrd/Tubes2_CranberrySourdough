@@ -24,7 +24,18 @@ export async function resolveSourceRoot({ mode, htmlInput, urlInput, fetcher = f
   }
 
   const response = await fetcher(`/api/scrape?target=${encodeURIComponent(target)}`);
-  const payload = (await response.json()) as { content?: string; error?: string };
+  const raw = await response.text();
+  let payload: { content?: string; error?: string };
+
+  try {
+    payload = JSON.parse(raw) as { content?: string; error?: string };
+  } catch {
+    throw new Error(
+      response.ok
+        ? "Scrape API returned an invalid response."
+        : `Scrape API failed with status ${response.status}.`,
+    );
+  }
 
   if (!response.ok || !payload.content) {
     throw new Error(payload.error ?? "Failed to scrape target URL.");
