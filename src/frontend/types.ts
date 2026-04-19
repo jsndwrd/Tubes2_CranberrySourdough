@@ -127,4 +127,5 @@ export type VisualizerSettings = {
   openTraceAfterTraversal: boolean;
   autoFitTreeAfterTraversal: boolean;
   multithreadTraversal: boolean;
+  maxParallelWorkers: number;
 };

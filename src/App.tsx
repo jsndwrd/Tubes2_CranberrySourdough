@@ -14,7 +14,6 @@ import { InspectorSidebar } from "./frontend/components/InspectorSidebar";
 import { SettingsModal } from "./frontend/components/SettingsModal";
 import { TreeExplorer } from "./frontend/components/TreeExplorer";
 import {
-  buildMeta,
   buildNodeDetails,
   findVisualRoot,
 } from "./frontend/logic/dom";
@@ -29,8 +28,7 @@ import {
   buildVisualLayout,
   buildVisualTree,
 } from "./frontend/logic/visualTree";
-import type { TWRes } from "./lib/worker";
-import TraversalWorker from "./lib/worker.ts?worker";
+import { parallelTraverse } from "./lib/worker";
 import type {
   Algorithm,
   ResultMode,
@@ -293,39 +291,15 @@ function App() {
       let nextState: VisualizerComputedState;
 
       if (settings.multithreadTraversal) {
-        nextState = await new Promise<VisualizerComputedState>(
-          (resolve, reject) => {
-            const worker = new TraversalWorker();
-
-            worker.onmessage = (event: MessageEvent<TWRes>) => {
-              worker.terminate();
-              const payload = event.data;
-
-              if (!payload.ok) {
-                reject(new Error(payload.message));
-                return;
-              }
-
-              const { pathMetaMap: _workerPaths, ...rest } = payload.state;
-              const { pathMetaMap } = buildMeta(root);
-              resolve({ ...rest, pathMetaMap });
-            };
-
-            worker.onerror = (event) => {
-              worker.terminate();
-              reject(new Error(event.message));
-            };
-
-            worker.postMessage({
-              treeJson: JSON.stringify(root),
-              label,
-              algorithm,
-              limit: limitValue,
-              resultMode,
-              selector,
-            });
-          },
-        );
+        nextState = await parallelTraverse({
+          root,
+          label,
+          algorithm,
+          limit: limitValue,
+          resultMode,
+          selector,
+          maxParallelWorkers: settings.maxParallelWorkers,
+        });
       } else {
         nextState = executeTraversal({
           root,

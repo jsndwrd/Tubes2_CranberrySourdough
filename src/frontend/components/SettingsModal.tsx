@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import {
+  MAX_MAX_PARALLEL_WORKERS,
   MAX_TRAVERSAL_ANIMATION_STEP_MS,
+  MIN_MAX_PARALLEL_WORKERS,
   MIN_TRAVERSAL_ANIMATION_STEP_MS,
   TRAVERSAL_ANIMATION_SLIDER_STEP,
 } from "../constants";
@@ -236,6 +238,50 @@ export function SettingsModal({
                 }
               />
             </div>
+            {settings.multithreadTraversal ? (
+              <div className="rounded-2xl border border-black/5 bg-[var(--surface-low)] p-4">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--text)]">
+                      Max parallel workers
+                    </p>
+                  </div>
+                  <div className="rounded-full border border-[var(--primary)]/16 bg-white px-3 py-1.5 text-xs font-semibold text-[var(--primary)]">
+                    {Math.max(
+                      MIN_MAX_PARALLEL_WORKERS,
+                      Math.min(
+                        MAX_MAX_PARALLEL_WORKERS,
+                        settings.maxParallelWorkers,
+                      ),
+                    )}
+                  </div>
+                </div>
+                <input
+                  aria-label="Max parallel workers"
+                  className="w-full accent-[var(--primary)]"
+                  max={MAX_MAX_PARALLEL_WORKERS}
+                  min={MIN_MAX_PARALLEL_WORKERS}
+                  onChange={(event) =>
+                    onSettingsChange({
+                      maxParallelWorkers: Number(event.target.value),
+                    })
+                  }
+                  step={1}
+                  type="range"
+                  value={Math.max(
+                    MIN_MAX_PARALLEL_WORKERS,
+                    Math.min(
+                      MAX_MAX_PARALLEL_WORKERS,
+                      settings.maxParallelWorkers,
+                    ),
+                  )}
+                />
+                <div className="mt-2 flex justify-between text-xs font-medium text-[var(--text-muted)]">
+                  <span>{MIN_MAX_PARALLEL_WORKERS}</span>
+                  <span>{MAX_MAX_PARALLEL_WORKERS}</span>
+                </div>
+              </div>
+            ) : null}
 
             <div className="grid gap-3">
               <ToggleRow
