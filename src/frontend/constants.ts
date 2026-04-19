@@ -12,6 +12,9 @@ export const MIN_TRAVERSAL_ANIMATION_STEP_MS = 8;
 export const MAX_TRAVERSAL_ANIMATION_STEP_MS = 500;
 export const TRAVERSAL_ANIMATION_SLIDER_STEP = 2;
 export const TRAVERSAL_MATCH_FLASH_MS = 320;
+export const MIN_MAX_PARALLEL_WORKERS = 1;
+export const MAX_MAX_PARALLEL_WORKERS = 8;
+export const DEFAULT_MAX_PARALLEL_WORKERS = 4;
 
 export const emptySummary: RunSummary = {
   info: 0,
@@ -43,5 +46,6 @@ export function createDefaultSettings(): VisualizerSettings {
     openTraceAfterTraversal: true,
     autoFitTreeAfterTraversal: false,
     multithreadTraversal: false,
+    maxParallelWorkers: DEFAULT_MAX_PARALLEL_WORKERS,
   };
 }
