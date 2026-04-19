@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ElmtNode } from "./lib/tree";
-import { createDefaultSettings, createEmptyComputedState, INSPECTOR_PANEL_WIDTH, TRAVERSAL_MATCH_FLASH_MS } from "./frontend/constants";
+import {
+  createDefaultSettings,
+  createEmptyComputedState,
+  INSPECTOR_PANEL_WIDTH,
+  TRAVERSAL_MATCH_FLASH_MS,
+} from "./frontend/constants";
 import { AboutModal } from "./frontend/components/AboutModal";
 import { AppHeader } from "./frontend/components/AppHeader";
 import { ConfigurationPanel } from "./frontend/components/ConfigurationPanel";
@@ -8,17 +13,37 @@ import { ExecutionTrace } from "./frontend/components/ExecutionTrace";
 import { InspectorSidebar } from "./frontend/components/InspectorSidebar";
 import { SettingsModal } from "./frontend/components/SettingsModal";
 import { TreeExplorer } from "./frontend/components/TreeExplorer";
-import { buildNodeDetails, findVisualRoot } from "./frontend/logic/dom";
+import {
+  buildMeta,
+  buildNodeDetails,
+  findVisualRoot,
+} from "./frontend/logic/dom";
 import { resolveSourceRoot } from "./frontend/logic/source";
-import { buildParsedSourceState, buildTraversalErrorState, buildTraversalResetState, executeTraversal, } from "./frontend/logic/traversal";
-import { buildVisualLayout, buildVisualTree, } from "./frontend/logic/visualTree";
-import type { Algorithm, ResultMode, SourceMode } from "./frontend/types";
+import {
+  buildParsedSourceState,
+  buildTraversalErrorState,
+  buildTraversalResetState,
+  executeTraversal,
+} from "./frontend/logic/traversal";
+import {
+  buildVisualLayout,
+  buildVisualTree,
+} from "./frontend/logic/visualTree";
+import type { TWRes } from "./lib/worker";
+import TraversalWorker from "./lib/worker.ts?worker";
+import type {
+  Algorithm,
+  ResultMode,
+  SourceMode,
+  VisualizerComputedState,
+} from "./frontend/types";
 
 function App() {
   const [algorithm, setAlgorithm] = useState<Algorithm>("BFS");
   const [sourceMode, setSourceMode] = useState<SourceMode>("url");
   const [resultMode, setResultMode] = useState<ResultMode>("all");
-  const [isConfigurationCollapsed, setIsConfigurationCollapsed] = useState(false);
+  const [isConfigurationCollapsed, setIsConfigurationCollapsed] =
+    useState(false);
   const [isAboutOpen, setIsAboutOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isInspectorVisible, setIsInspectorVisible] = useState(false);
@@ -31,10 +56,18 @@ function App() {
   const [limitInput, setLimitInput] = useState("10");
   const [parsedRoot, setParsedRoot] = useState<ElmtNode | null>(null);
   const [settings, setSettings] = useState(createDefaultSettings);
-  const [animatedVisitedPaths, setAnimatedVisitedPaths] = useState<string[]>([]);
-  const [animatedMatchedPaths, setAnimatedMatchedPaths] = useState<string[]>([]);
-  const [activeTraversalPath, setActiveTraversalPath] = useState<string | null>(null);
-  const [flashingMatchedPaths, setFlashingMatchedPaths] = useState<string[]>([]);
+  const [animatedVisitedPaths, setAnimatedVisitedPaths] = useState<string[]>(
+    [],
+  );
+  const [animatedMatchedPaths, setAnimatedMatchedPaths] = useState<string[]>(
+    [],
+  );
+  const [activeTraversalPath, setActiveTraversalPath] = useState<string | null>(
+    null,
+  );
+  const [flashingMatchedPaths, setFlashingMatchedPaths] = useState<string[]>(
+    [],
+  );
   const [autoFitSignal, setAutoFitSignal] = useState(0);
   const [computedState, setComputedState] = useState(createEmptyComputedState);
   const traversalAnimationTimeoutsRef = useRef<number[]>([]);
@@ -51,10 +84,17 @@ function App() {
   } = computedState;
 
   const limitValue = Math.max(1, Number.parseInt(limitInput, 10) || 10);
-  const visibleResults = resultMode === "top" ? results.slice(0, limitValue) : results;
-  const visibleVisitedPaths = isTraversalAnimating ? animatedVisitedPaths : visitedPaths;
-  const visibleMatchedPaths = isTraversalAnimating ? animatedMatchedPaths : matchedPaths;
-  const visualStatusText = isTraversalAnimating ? `Animating ${algorithm} traversal...` : statusText;
+  const visibleResults =
+    resultMode === "top" ? results.slice(0, limitValue) : results;
+  const visibleVisitedPaths = isTraversalAnimating
+    ? animatedVisitedPaths
+    : visitedPaths;
+  const visibleMatchedPaths = isTraversalAnimating
+    ? animatedMatchedPaths
+    : matchedPaths;
+  const visualStatusText = isTraversalAnimating
+    ? `Animating ${algorithm} traversal...`
+    : statusText;
   const canResetTraversal = parsedRoot !== null;
   const canResetAll =
     algorithm !== "BFS" ||
@@ -73,9 +113,18 @@ function App() {
     matchedPaths.length > 0 ||
     isInspectorVisible ||
     isTraversalAnimating;
-  const visitedPathSet = useMemo(() => new Set(visibleVisitedPaths), [visibleVisitedPaths]);
-  const matchedPathSet = useMemo(() => new Set(visibleMatchedPaths), [visibleMatchedPaths]);
-  const flashingMatchedPathSet = useMemo(() => new Set(flashingMatchedPaths), [flashingMatchedPaths]);
+  const visitedPathSet = useMemo(
+    () => new Set(visibleVisitedPaths),
+    [visibleVisitedPaths],
+  );
+  const matchedPathSet = useMemo(
+    () => new Set(visibleMatchedPaths),
+    [visibleMatchedPaths],
+  );
+  const flashingMatchedPathSet = useMemo(
+    () => new Set(flashingMatchedPaths),
+    [flashingMatchedPaths],
+  );
   const desktopColumns = `${isConfigurationCollapsed ? "0rem" : "19rem"} minmax(0,1fr) ${isInspectorVisible ? INSPECTOR_PANEL_WIDTH : "0rem"}`;
   const visualRoot = useMemo(
     () => (parsedRoot ? findVisualRoot(parsedRoot) : null),
@@ -114,10 +163,15 @@ function App() {
 
   function handleLimitInputChange(value: string) {
     const parsedValue = Number.parseInt(value, 10);
-    setLimitInput(String(Number.isNaN(parsedValue) ? 1 : Math.max(1, parsedValue)));
+    setLimitInput(
+      String(Number.isNaN(parsedValue) ? 1 : Math.max(1, parsedValue)),
+    );
   }
 
-  function syncTraversalAnimation(visitedSequence: string[], matchedSequence: string[]) {
+  function syncTraversalAnimation(
+    visitedSequence: string[],
+    matchedSequence: string[],
+  ) {
     setAnimatedVisitedPaths(visitedSequence);
     setAnimatedMatchedPaths(matchedSequence);
     setActiveTraversalPath(null);
@@ -125,7 +179,11 @@ function App() {
     setIsTraversalAnimating(false);
   }
 
-  function startTraversalAnimation(visitedSequence: string[], matchedSequence: string[], stepMs: number) {
+  function startTraversalAnimation(
+    visitedSequence: string[],
+    matchedSequence: string[],
+    stepMs: number,
+  ) {
     clearTraversalAnimationTimeouts();
 
     if (visitedSequence.length === 0) {
@@ -155,7 +213,9 @@ function App() {
         setAnimatedMatchedPaths([...revealedMatchedPaths]);
         setFlashingMatchedPaths((current) => [...current, path]);
         queueTraversalAnimation(() => {
-          setFlashingMatchedPaths((current) => current.filter((item) => item !== path));
+          setFlashingMatchedPaths((current) =>
+            current.filter((item) => item !== path),
+          );
         }, TRAVERSAL_MATCH_FLASH_MS);
       }
 
@@ -176,7 +236,10 @@ function App() {
 
   function getStatus(path: string) {
     const canHighlightSelectedPath =
-      !isTraversalAnimating || visitedPaths.length === 0 || visitedPathSet.has(path) || matchedPathSet.has(path);
+      !isTraversalAnimating ||
+      visitedPaths.length === 0 ||
+      visitedPathSet.has(path) ||
+      matchedPathSet.has(path);
 
     if (selectedPath === path && canHighlightSelectedPath) {
       return "current" as const;
@@ -197,7 +260,7 @@ function App() {
   }, []);
 
   async function resolveCurrentSource(mode: SourceMode) {
-    return resolveSourceRoot({mode, htmlInput, urlInput,});
+    return resolveSourceRoot({ mode, htmlInput, urlInput });
   }
 
   async function parseCurrentSource(mode: SourceMode) {
@@ -226,12 +289,62 @@ function App() {
     setIsBusy(true);
     try {
       const { root, label } = await resolveCurrentSource(sourceMode);
-      const nextState = executeTraversal({ root, label, algorithm, limit: limitValue, resultMode, selector });
+
+      let nextState: VisualizerComputedState;
+
+      if (settings.multithreadTraversal) {
+        nextState = await new Promise<VisualizerComputedState>(
+          (resolve, reject) => {
+            const worker = new TraversalWorker();
+
+            worker.onmessage = (event: MessageEvent<TWRes>) => {
+              worker.terminate();
+              const payload = event.data;
+
+              if (!payload.ok) {
+                reject(new Error(payload.message));
+                return;
+              }
+
+              const { pathMetaMap: _workerPaths, ...rest } = payload.state;
+              const { pathMetaMap } = buildMeta(root);
+              resolve({ ...rest, pathMetaMap });
+            };
+
+            worker.onerror = (event) => {
+              worker.terminate();
+              reject(new Error(event.message));
+            };
+
+            worker.postMessage({
+              treeJson: JSON.stringify(root),
+              label,
+              algorithm,
+              limit: limitValue,
+              resultMode,
+              selector,
+            });
+          },
+        );
+      } else {
+        nextState = executeTraversal({
+          root,
+          label,
+          algorithm,
+          limit: limitValue,
+          resultMode,
+          selector,
+        });
+      }
 
       setParsedRoot(root);
       setComputedState(nextState);
       if (settings.traversalAnimationEnabled) {
-        startTraversalAnimation(nextState.visitedPaths, nextState.matchedPaths, settings.traversalAnimationStepMs);
+        startTraversalAnimation(
+          nextState.visitedPaths,
+          nextState.matchedPaths,
+          settings.traversalAnimationStepMs,
+        );
       } else {
         clearTraversalAnimationTimeouts();
         syncTraversalAnimation(nextState.visitedPaths, nextState.matchedPaths);
@@ -300,12 +413,14 @@ function App() {
 
   return (
     <div className="bg-[var(--background)] xl:h-screen xl:overflow-hidden">
-        <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
+      <div className="min-h-screen xl:flex xl:h-full xl:flex-col">
         <AppHeader
           isConfigurationCollapsed={isConfigurationCollapsed}
           onOpenAbout={() => setIsAboutOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(true)}
-          onToggleConfiguration={() => setIsConfigurationCollapsed((value) => !value)}
+          onToggleConfiguration={() =>
+            setIsConfigurationCollapsed((value) => !value)
+          }
         />
 
         <div
@@ -370,15 +485,14 @@ function App() {
           traceEntries={traceEntries}
         />
       </div>
-      <AboutModal
-        isOpen={isAboutOpen}
-        onClose={() => setIsAboutOpen(false)}
-      />
+      <AboutModal isOpen={isAboutOpen} onClose={() => setIsAboutOpen(false)} />
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         onReset={() => setSettings(createDefaultSettings())}
-        onSettingsChange={(next) => setSettings((current) => ({ ...current, ...next }))}
+        onSettingsChange={(next) =>
+          setSettings((current) => ({ ...current, ...next }))
+        }
         settings={settings}
       />
     </div>

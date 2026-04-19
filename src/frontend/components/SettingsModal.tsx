@@ -1,5 +1,9 @@
 import { useEffect } from "react";
-import { MAX_TRAVERSAL_ANIMATION_STEP_MS, MIN_TRAVERSAL_ANIMATION_STEP_MS, TRAVERSAL_ANIMATION_SLIDER_STEP } from "../constants";
+import {
+  MAX_TRAVERSAL_ANIMATION_STEP_MS,
+  MIN_TRAVERSAL_ANIMATION_STEP_MS,
+  TRAVERSAL_ANIMATION_SLIDER_STEP,
+} from "../constants";
 import type { VisualizerSettings } from "../types";
 
 type SettingsModalProps = {
@@ -22,7 +26,9 @@ function ToggleRow({ checked, description, label, onToggle }: ToggleRowProps) {
     <div className="flex items-start justify-between gap-4 rounded-2xl border border-black/5 bg-[var(--surface-low)] px-4 py-3.5">
       <div className="space-y-1">
         <p className="text-sm font-semibold text-[var(--text)]">{label}</p>
-        <p className="text-sm leading-relaxed text-[var(--text-muted)]">{description}</p>
+        <p className="text-sm leading-relaxed text-[var(--text-muted)]">
+          {description}
+        </p>
       </div>
       <button
         aria-pressed={checked}
@@ -30,7 +36,7 @@ function ToggleRow({ checked, description, label, onToggle }: ToggleRowProps) {
           "mt-0.5 flex h-7 w-12 items-center rounded-full border p-1 transition",
           checked
             ? "justify-end border-[var(--primary)]/24 bg-[var(--primary-soft)]"
-            : "justify-start border-black/8 bg-white"
+            : "justify-start border-black/8 bg-white",
         ].join(" ")}
         onClick={onToggle}
         type="button"
@@ -38,7 +44,9 @@ function ToggleRow({ checked, description, label, onToggle }: ToggleRowProps) {
         <span
           className={[
             "h-5 w-5 rounded-full transition",
-            checked ? "bg-[var(--primary)] shadow-[0_8px_16px_-10px_rgba(0,69,163,0.72)]" : "bg-[var(--surface-strong)]"
+            checked
+              ? "bg-[var(--primary)] shadow-[0_8px_16px_-10px_rgba(0,69,163,0.72)]"
+              : "bg-[var(--surface-strong)]",
           ].join(" ")}
         />
       </button>
@@ -64,14 +72,26 @@ function describeTraversalSpeed(stepMs: number) {
 }
 
 function sliderValueFromStepMs(stepMs: number) {
-  return MAX_TRAVERSAL_ANIMATION_STEP_MS + MIN_TRAVERSAL_ANIMATION_STEP_MS - stepMs;
+  return (
+    MAX_TRAVERSAL_ANIMATION_STEP_MS + MIN_TRAVERSAL_ANIMATION_STEP_MS - stepMs
+  );
 }
 
 function stepMsFromSliderValue(sliderValue: number) {
-  return MAX_TRAVERSAL_ANIMATION_STEP_MS + MIN_TRAVERSAL_ANIMATION_STEP_MS - sliderValue;
+  return (
+    MAX_TRAVERSAL_ANIMATION_STEP_MS +
+    MIN_TRAVERSAL_ANIMATION_STEP_MS -
+    sliderValue
+  );
 }
 
-export function SettingsModal({ isOpen, onClose, onReset, onSettingsChange, settings }: SettingsModalProps) {
+export function SettingsModal({
+  isOpen,
+  onClose,
+  onReset,
+  onSettingsChange,
+  settings,
+}: SettingsModalProps) {
   useEffect(() => {
     if (!isOpen) {
       return;
@@ -110,9 +130,16 @@ export function SettingsModal({ isOpen, onClose, onReset, onSettingsChange, sett
       >
         <div className="flex items-start justify-between gap-4 border-b border-black/5 px-5 py-4 md:px-6">
           <div className="space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">Visualizer Preferences</p>
-            <h2 className="text-2xl font-semibold tracking-tight text-[var(--text)]">Settings</h2>
-            <p className="text-sm text-[var(--text-muted)]">Tune traversal pacing, panel behavior, and canvas display without touching the main configuration flow.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--primary)]">
+              Visualizer Preferences
+            </p>
+            <h2 className="text-2xl font-semibold tracking-tight text-[var(--text)]">
+              Settings
+            </h2>
+            <p className="text-sm text-[var(--text-muted)]">
+              Tune traversal pacing, panel behavior, and canvas display without
+              touching the main configuration flow.
+            </p>
           </div>
           <button
             aria-label="Close settings dialog"
@@ -127,25 +154,44 @@ export function SettingsModal({ isOpen, onClose, onReset, onSettingsChange, sett
         <div className="overflow-y-auto px-5 py-5 md:px-6 md:py-6">
           <section className="space-y-4">
             <div className="space-y-1">
-              <h3 className="text-lg font-semibold text-[var(--text)]">Traversal Animation</h3>
-              <p className="text-sm text-[var(--text-muted)]">Controls whether traversal animates at all, and if it does, how slow or fast each visitation step should feel.</p>
+              <h3 className="text-lg font-semibold text-[var(--text)]">
+                Traversal Animation
+              </h3>
+              <p className="text-sm text-[var(--text-muted)]">
+                Controls whether traversal animates at all, and if it does, how
+                slow or fast each visitation step should feel.
+              </p>
             </div>
             <div className="grid gap-3">
               <ToggleRow
                 checked={settings.traversalAnimationEnabled}
                 description="Turn traversal animation on when you want to watch BFS or DFS progress step by step. Turn it off when you want the final state instantly."
                 label="Enable traversal animation"
-                onToggle={() => onSettingsChange({ traversalAnimationEnabled: !settings.traversalAnimationEnabled })}
+                onToggle={() =>
+                  onSettingsChange({
+                    traversalAnimationEnabled:
+                      !settings.traversalAnimationEnabled,
+                  })
+                }
               />
             </div>
             {settings.traversalAnimationEnabled ? (
               <div className="rounded-2xl border border-black/5 bg-[var(--surface-low)] p-4">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-[18px] text-[var(--primary)]">speed</span>
+                    <span className="material-symbols-outlined text-[18px] text-[var(--primary)]">
+                      speed
+                    </span>
                     <div>
-                      <p className="text-sm font-semibold text-[var(--text)]">Animation Speed</p>
-                      <p className="text-xs text-[var(--text-muted)]">Current pace: {describeTraversalSpeed(settings.traversalAnimationStepMs)}</p>
+                      <p className="text-sm font-semibold text-[var(--text)]">
+                        Animation Speed
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">
+                        Current pace:{" "}
+                        {describeTraversalSpeed(
+                          settings.traversalAnimationStepMs,
+                        )}
+                      </p>
                     </div>
                   </div>
                   <div className="rounded-full border border-[var(--primary)]/16 bg-white px-3 py-1.5 text-xs font-semibold text-[var(--primary)]">
@@ -157,10 +203,18 @@ export function SettingsModal({ isOpen, onClose, onReset, onSettingsChange, sett
                     className="w-full accent-[var(--primary)]"
                     max={MAX_TRAVERSAL_ANIMATION_STEP_MS}
                     min={MIN_TRAVERSAL_ANIMATION_STEP_MS}
-                    onChange={(event) => onSettingsChange({ traversalAnimationStepMs: stepMsFromSliderValue(Number(event.target.value)) })}
+                    onChange={(event) =>
+                      onSettingsChange({
+                        traversalAnimationStepMs: stepMsFromSliderValue(
+                          Number(event.target.value),
+                        ),
+                      })
+                    }
                     step={TRAVERSAL_ANIMATION_SLIDER_STEP}
                     type="range"
-                    value={sliderValueFromStepMs(settings.traversalAnimationStepMs)}
+                    value={sliderValueFromStepMs(
+                      settings.traversalAnimationStepMs,
+                    )}
                   />
                   <div className="flex items-center justify-between text-xs font-medium text-[var(--text-muted)]">
                     <span>Very slow</span>
@@ -170,32 +224,61 @@ export function SettingsModal({ isOpen, onClose, onReset, onSettingsChange, sett
                 </div>
               </div>
             ) : null}
+            <div className="grid gap-3">
+              <ToggleRow
+                checked={settings.multithreadTraversal}
+                description="Traversal DFS/BFS with Multithread."
+                label="Parallel / Multithread"
+                onToggle={() =>
+                  onSettingsChange({
+                    multithreadTraversal: !settings.multithreadTraversal,
+                  })
+                }
+              />
+            </div>
 
             <div className="grid gap-3">
               <ToggleRow
                 checked={settings.openInspectorAfterTraversal}
                 description="Open the right inspector automatically after each traversal run finishes."
                 label="Open inspector after traversal"
-                onToggle={() => onSettingsChange({ openInspectorAfterTraversal: !settings.openInspectorAfterTraversal })}
+                onToggle={() =>
+                  onSettingsChange({
+                    openInspectorAfterTraversal:
+                      !settings.openInspectorAfterTraversal,
+                  })
+                }
               />
               <ToggleRow
                 checked={settings.openTraceAfterTraversal}
                 description="Expand the execution trace automatically whenever traversal is executed."
                 label="Open trace after traversal"
-                onToggle={() => onSettingsChange({ openTraceAfterTraversal: !settings.openTraceAfterTraversal })}
+                onToggle={() =>
+                  onSettingsChange({
+                    openTraceAfterTraversal: !settings.openTraceAfterTraversal,
+                  })
+                }
               />
               <ToggleRow
                 checked={settings.autoFitTreeAfterTraversal}
                 description="Recenter and fit the tree to the viewport after a traversal run completes."
                 label="Auto-fit tree after traversal"
-                onToggle={() => onSettingsChange({ autoFitTreeAfterTraversal: !settings.autoFitTreeAfterTraversal })}
+                onToggle={() =>
+                  onSettingsChange({
+                    autoFitTreeAfterTraversal:
+                      !settings.autoFitTreeAfterTraversal,
+                  })
+                }
               />
             </div>
           </section>
         </div>
 
         <div className="flex items-center justify-between gap-3 border-t border-black/5 px-5 py-4 md:px-6">
-          <p className="text-sm text-[var(--text-muted)]">These settings apply immediately and stay active for the current session.</p>
+          <p className="text-sm text-[var(--text-muted)]">
+            These settings apply immediately and stay active for the current
+            session.
+          </p>
           <button
             className="rounded-full border border-black/5 bg-white px-4 py-2 text-sm font-medium text-[var(--text-muted)] transition hover:border-[var(--primary)]/16 hover:bg-[var(--primary-soft)]/36 hover:text-[var(--primary)]"
             onClick={onReset}
