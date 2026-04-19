@@ -5,7 +5,12 @@ export type SourceMode = "url" | "html";
 export type ResultMode = "top" | "all";
 export type NodeStatus = "current" | "visited" | "matched" | "inactive";
 export type TraceLevel = "INFO" | "MATCH" | "ERROR";
-export type Combinator = "child" | "descendant" | null;
+export type Combinator =
+  | "child"
+  | "descendant"
+  | "adj-sibling"
+  | "gen-sibling"
+  | null;
 
 export type TraceEntry = {
   time: string;

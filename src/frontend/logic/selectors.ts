@@ -1,14 +1,16 @@
 import type { ElmtNode } from "../../lib/tree";
-import { getClasses } from "./dom";
+import { elementChildren, getClasses } from "./dom";
 import type { Combinator, ElementMeta, SelectorStep } from "../types";
 
-function parseSimpleSelector(token: string): Omit<SelectorStep, "relation"> | null {
+function parseSimpleSelector(
+  token: string,
+): Omit<SelectorStep, "relation"> | null {
   if (token === "*") {
     return {
       tag: null,
       id: null,
       classes: [],
-      universal: true
+      universal: true,
     };
   }
 
@@ -40,13 +42,23 @@ function parseSimpleSelector(token: string): Omit<SelectorStep, "relation"> | nu
     tag,
     id,
     classes,
-    universal: false
+    universal: false,
   };
 }
 
 function parseSelectorGroup(group: string): SelectorStep[] | null {
-  const tokens = group.replace(/\s*>\s*/g, " > ").trim().split(/\s+/);
-  if (tokens.length === 0 || tokens[0] === ">") {
+  const tokens = group
+    .replace(/\s*>\s*/g, " > ")
+    .replace(/\s*\+\s*/g, " + ")
+    .replace(/\s*~\s*/g, " ~ ")
+    .trim()
+    .split(/\s+/);
+  if (
+    tokens.length === 0 ||
+    tokens[0] === ">" ||
+    tokens[0] === "+" ||
+    tokens[0] === "~"
+  ) {
     return null;
   }
 
@@ -58,6 +70,14 @@ function parseSelectorGroup(group: string): SelectorStep[] | null {
       relation = "child";
       continue;
     }
+    if (token === "+") {
+      relation = "adj-sibling";
+      continue;
+    }
+    if (token === "~") {
+      relation = "gen-sibling";
+      continue;
+    }
 
     const simple = parseSimpleSelector(token);
     if (!simple) {
@@ -66,12 +86,13 @@ function parseSelectorGroup(group: string): SelectorStep[] | null {
 
     steps.push({
       ...simple,
-      relation: steps.length === 0 ? null : relation
+      relation: steps.length === 0 ? null : relation,
     });
     relation = "descendant";
   }
 
-  if (tokens[tokens.length - 1] === ">") {
+  const last = tokens[tokens.length - 1];
+  if (last === ">" || last === "+" || last === "~") {
     return null;
   }
 
@@ -112,7 +133,12 @@ function matchesStep(meta: ElementMeta, step: SelectorStep) {
   return step.classes.every((className) => classes.includes(className));
 }
 
-export function matchesGroup(meta: ElementMeta, group: SelectorStep[], metaMap: Map<ElmtNode, ElementMeta>, index = group.length - 1): boolean {
+export function matchesGroup(
+  meta: ElementMeta,
+  group: SelectorStep[],
+  metaMap: Map<ElmtNode, ElementMeta>,
+  index = group.length - 1,
+): boolean {
   if (!matchesStep(meta, group[index])) {
     return false;
   }
@@ -122,7 +148,7 @@ export function matchesGroup(meta: ElementMeta, group: SelectorStep[], metaMap: 
   }
 
   const relation = group[index].relation;
-  const parent = meta.parent ? metaMap.get(meta.parent) ?? null : null;
+  const parent = meta.parent ? (metaMap.get(meta.parent) ?? null) : null;
 
   if (!parent) {
     return false;
@@ -132,12 +158,34 @@ export function matchesGroup(meta: ElementMeta, group: SelectorStep[], metaMap: 
     return matchesGroup(parent, group, metaMap, index - 1);
   }
 
+  if (relation === "adj-sibling") {
+    const siblings = elementChildren(parent.node);
+    const idx = siblings.indexOf(meta.node);
+    if (idx <= 0) {
+      return false;
+    }
+    const prevMeta = metaMap.get(siblings[idx - 1]);
+    return prevMeta ? matchesGroup(prevMeta, group, metaMap, index - 1) : false;
+  }
+
+  if (relation === "gen-sibling") {
+    const siblings = elementChildren(parent.node);
+    const idx = siblings.indexOf(meta.node);
+    for (let i = 0; i < idx; i++) {
+      const sibMeta = metaMap.get(siblings[i]);
+      if (sibMeta && matchesGroup(sibMeta, group, metaMap, index - 1)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   let ancestor: ElementMeta | null = parent;
   while (ancestor) {
     if (matchesGroup(ancestor, group, metaMap, index - 1)) {
       return true;
     }
-    ancestor = ancestor.parent ? metaMap.get(ancestor.parent) ?? null : null;
+    ancestor = ancestor.parent ? (metaMap.get(ancestor.parent) ?? null) : null;
   }
 
   return false;
