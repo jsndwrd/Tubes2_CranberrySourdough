@@ -126,4 +126,5 @@ export type VisualizerSettings = {
   openInspectorAfterTraversal: boolean;
   openTraceAfterTraversal: boolean;
   autoFitTreeAfterTraversal: boolean;
+  multithreadTraversal: boolean;
 };
