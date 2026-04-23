@@ -4,15 +4,31 @@ import type { Algorithm, NodeDetails, ResultItem, RunSummary } from "../types";
 
 type InspectorSidebarProps = {
   selectedDetails: NodeDetails | null;
+  lcaDetails: NodeDetails | null;
+  lcaStatusText: string;
+  lcaTargetPath: string;
   visibleResults: ResultItem[];
   selectedPath: string | null;
   summary: RunSummary;
   algorithm: Algorithm;
   visible: boolean;
+  onLcaTargetPathChange: (path: string) => void;
   onSelectPath: (path: string) => void;
 };
 
-export function InspectorSidebar({ selectedDetails, visibleResults, selectedPath, summary, algorithm, visible, onSelectPath }: InspectorSidebarProps) {
+export function InspectorSidebar({
+  selectedDetails,
+  lcaDetails,
+  lcaStatusText,
+  lcaTargetPath,
+  visibleResults,
+  selectedPath,
+  summary,
+  algorithm,
+  visible,
+  onLcaTargetPathChange,
+  onSelectPath,
+}: InspectorSidebarProps) {
   return (
     <div
       className={[
@@ -92,6 +108,42 @@ export function InspectorSidebar({ selectedDetails, visibleResults, selectedPath
               <p className="rounded-xl bg-white/70 p-3 font-code text-xs leading-relaxed text-[var(--text-muted)]">
                 {selectedDetails?.path ?? "No path available"}
               </p>
+            </div>
+
+            <div className="border-t border-black/5 pt-3">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <p className="text-xs font-medium text-[var(--text-muted)]">
+                  LCA Checker
+                </p>
+                <span className="rounded-full bg-[var(--surface-strong)] px-2 py-1 text-xs font-medium text-[var(--text-muted)]">
+                  Node A = selected node
+                </span>
+              </div>
+              <div className="space-y-3 rounded-xl bg-white/70 p-3">
+                <label className="block space-y-1.5">
+                  <span className="text-xs font-medium text-[var(--text-muted)]">
+                    Node B path
+                  </span>
+                  <input
+                    className="w-full rounded-lg border border-black/10 bg-white px-3 py-2 font-code text-xs text-[var(--text)] outline-none transition focus:border-[var(--primary)]"
+                    onChange={(event) => onLcaTargetPathChange(event.target.value)}
+                    placeholder="Paste a DOM path from the tree or results"
+                    value={lcaTargetPath}
+                  />
+                </label>
+
+                <div className="rounded-xl bg-[var(--surface-low)] p-3">
+                  <p className="text-xs font-medium text-[var(--text-muted)]">
+                    LCA Result
+                  </p>
+                  <p className="mt-1 font-headline text-base font-semibold text-[var(--text)]">
+                    {lcaDetails?.shortLabel ?? "No LCA yet"}
+                  </p>
+                  <p className="mt-1 font-code text-[11px] leading-relaxed text-[var(--text-muted)]">
+                    {lcaDetails?.path ?? lcaStatusText}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </section>
