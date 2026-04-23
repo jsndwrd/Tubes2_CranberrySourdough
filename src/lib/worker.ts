@@ -1,5 +1,6 @@
 import { bfsWalk, dfsWalk } from "./search";
 import type { ElmtNode, Node } from "./tree";
+import { parseSelector } from "../frontend/logic/selectors";
 import { executeTraversal } from "../frontend/logic/traversal";
 import type {
   Algorithm,
@@ -286,7 +287,7 @@ function balancedSplitShards(
   }
 
   const { parent: initialParent, siblings } = branching;
-  let branches: SplitBranch[] = siblings.map((node) => ({
+  const branches: SplitBranch[] = siblings.map((node) => ({
     parent: initialParent,
     node,
     size: subtreeNodeCount(node),
@@ -348,7 +349,7 @@ function balancedSplitShards(
   );
   const fractional = quotas.map((q) => q - Math.floor(q));
 
-  let bucketCounts = quotas.map((q) => Math.max(1, Math.floor(q)));
+  const bucketCounts = quotas.map((q) => Math.max(1, Math.floor(q)));
   let sumBuckets = bucketCounts.reduce((a, b) => a + b, 0);
 
   if (sumBuckets > bucketTarget) {
@@ -625,9 +626,23 @@ function rebind(
   root: ElmtNode,
   state: VisualizerComputedState,
 ): VisualizerComputedState {
-  const { pathMetaMap: _w, ...rest } = state;
   const { pathMetaMap } = buildMeta(root);
-  return { ...rest, pathMetaMap };
+  return { ...state, pathMetaMap };
+}
+
+function needsSingleThreadTraversal(resultMode: ResultMode, selector: string) {
+  if (resultMode === "top") {
+    return true;
+  }
+
+  const parsedSelector = parseSelector(selector);
+  if (!parsedSelector) {
+    return false;
+  }
+
+  return parsedSelector.some((group) =>
+    group.some((step) => step.relation === "adj-sibling" || step.relation === "gen-sibling"),
+  );
 }
 
 export async function parallelTraverse(
@@ -642,6 +657,11 @@ export async function parallelTraverse(
     selector,
     maxParallelWorkers,
   } = input;
+
+  if (needsSingleThreadTraversal(resultMode, selector)) {
+    return executeTraversal({ root, label, algorithm, limit, resultMode, selector });
+  }
+
   const userCap = Math.max(
     MIN_MAX_PARALLEL_WORKERS,
     Math.min(
