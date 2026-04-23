@@ -28,6 +28,10 @@ import {
   buildVisualLayout,
   buildVisualTree,
 } from "./frontend/logic/visualTree";
+import {
+  buildLcaIndex,
+  findLowestCommonAncestor,
+} from "./lib/tree";
 import { parallelTraverse } from "./lib/worker";
 import type {
   Algorithm,
@@ -66,6 +70,7 @@ function App() {
   const [flashingMatchedPaths, setFlashingMatchedPaths] = useState<string[]>(
     [],
   );
+  const [lcaTargetPath, setLcaTargetPath] = useState("");
   const [autoFitSignal, setAutoFitSignal] = useState(0);
   const [computedState, setComputedState] = useState(createEmptyComputedState);
   const traversalAnimationTimeoutsRef = useRef<number[]>([]);
@@ -137,6 +142,10 @@ function App() {
     () => (visualTree ? buildVisualLayout(visualTree) : null),
     [visualTree],
   );
+  const lcaIndex = useMemo(
+    () => (parsedRoot ? buildLcaIndex(parsedRoot) : null),
+    [parsedRoot],
+  );
   const selectedDetails = useMemo(() => {
     if (!selectedPath || !pathMetaMap) {
       return null;
@@ -145,6 +154,58 @@ function App() {
     const meta = pathMetaMap.get(selectedPath);
     return meta ? buildNodeDetails(meta) : null;
   }, [pathMetaMap, selectedPath]);
+  const lcaTargetDetails = useMemo(() => {
+    if (!lcaTargetPath || !pathMetaMap) {
+      return null;
+    }
+
+    const meta = pathMetaMap.get(lcaTargetPath.trim());
+    return meta ? buildNodeDetails(meta) : null;
+  }, [lcaTargetPath, pathMetaMap]);
+  const lcaDetails = useMemo(() => {
+    if (!lcaIndex || !selectedPath || !selectedDetails || !lcaTargetDetails || !pathMetaMap) {
+      return null;
+    }
+
+    const leftMeta = pathMetaMap.get(selectedPath);
+    const rightMeta = pathMetaMap.get(lcaTargetPath.trim());
+
+    if (!leftMeta || !rightMeta) {
+      return null;
+    }
+
+    const lcaNode = findLowestCommonAncestor(lcaIndex, leftMeta.node, rightMeta.node);
+    if (!lcaNode || lcaNode.type !== "element") {
+      return null;
+    }
+
+    const lcaMeta = Array.from(pathMetaMap.values()).find(
+      (meta) => meta.node === lcaNode,
+    );
+
+    return lcaMeta ? buildNodeDetails(lcaMeta) : null;
+  }, [lcaIndex, lcaTargetDetails, lcaTargetPath, pathMetaMap, selectedDetails, selectedPath]);
+  const lcaStatusText = useMemo(() => {
+    if (!parsedRoot) {
+      return "Parse a DOM first, then choose two nodes to compare.";
+    }
+
+    if (!selectedDetails) {
+      return "Select node A from the tree or results.";
+    }
+
+    if (!lcaTargetPath.trim()) {
+      return "Paste node B path here to compute the common ancestor.";
+    }
+
+    if (!lcaTargetDetails) {
+      return "Node B path was not found in the current DOM.";
+    }
+
+    return lcaDetails
+      ? `LCA found: ${lcaDetails.shortLabel}`
+      : "The selected pair does not have a comparable LCA.";
+  }, [lcaDetails, lcaTargetDetails, lcaTargetPath, parsedRoot, selectedDetails]);
 
   function clearTraversalAnimationTimeouts() {
     for (const timeoutId of traversalAnimationTimeoutsRef.current) {
@@ -267,6 +328,7 @@ function App() {
       const { root, label } = await resolveCurrentSource(mode);
       clearTraversalAnimationTimeouts();
       setParsedRoot(root);
+      setLcaTargetPath("");
       setComputedState(buildParsedSourceState(root, label));
       syncTraversalAnimation([], []);
       setIsInspectorVisible(false);
@@ -275,6 +337,7 @@ function App() {
         error instanceof Error ? error.message : "Failed to parse the DOM.";
       clearTraversalAnimationTimeouts();
       setParsedRoot(null);
+      setLcaTargetPath("");
       setComputedState(buildTraversalErrorState(message));
       syncTraversalAnimation([], []);
       setIsInspectorVisible(false);
@@ -354,6 +417,7 @@ function App() {
     setSelector("");
     setLimitInput("10");
     setParsedRoot(null);
+    setLcaTargetPath("");
     setComputedState(createEmptyComputedState());
     syncTraversalAnimation([], []);
     setIsInspectorVisible(false);
@@ -381,6 +445,7 @@ function App() {
 
     clearTraversalAnimationTimeouts();
     setComputedState(buildTraversalResetState(parsedRoot));
+    setLcaTargetPath("");
     syncTraversalAnimation([], []);
     setIsInspectorVisible(false);
   }
@@ -442,6 +507,10 @@ function App() {
 
           <InspectorSidebar
             algorithm={algorithm}
+            lcaDetails={lcaDetails}
+            lcaStatusText={lcaStatusText}
+            lcaTargetPath={lcaTargetPath}
+            onLcaTargetPathChange={setLcaTargetPath}
             onSelectPath={selectPath}
             selectedDetails={selectedDetails}
             selectedPath={selectedPath}
