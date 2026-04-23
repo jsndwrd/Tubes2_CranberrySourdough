@@ -18,6 +18,7 @@ import {
   elementChildren,
   formatTime,
   getDefaultSelectedPath,
+  pathSegment,
 } from "../frontend/logic/dom";
 
 export type TWorker = {
@@ -141,18 +142,288 @@ function cloneShard(
   return doc;
 }
 
-// Split items evenly
-function partitionShards<T>(items: T[], bucketCount: number): T[][] {
-  if (bucketCount <= 0) {
-    return [items];
+function buildShardPathMap(
+  root: ElmtNode,
+  parent: ElmtNode,
+  shard: ElmtNode[],
+): Map<string, string> {
+  const { metaMap } = buildMeta(root);
+  const parentMeta = metaMap.get(parent);
+  const parentKey = parentMeta?.pathKey ?? "";
+
+  const fullPositions = new Map<ElmtNode, number>();
+  let fullPos = 0;
+  for (const ch of parent.children) {
+    if (ch.type === "element" && ch.tag !== "#document") {
+      fullPos += 1;
+      fullPositions.set(ch as ElmtNode, fullPos);
+    }
   }
 
-  const buckets: T[][] = Array.from({ length: bucketCount }, () => []);
-  for (let i = 0; i < items.length; i++) {
-    buckets[i % bucketCount].push(items[i]);
+  const shardSet = new Set(shard);
+  let shardPos = 0;
+  const map = new Map<string, string>();
+
+  for (const ch of parent.children) {
+    if (ch.type !== "element" || ch.tag === "#document") {
+      continue;
+    }
+    const node = ch as ElmtNode;
+    if (!shardSet.has(node)) {
+      continue;
+    }
+
+    shardPos += 1;
+    const shardSeg = pathSegment(node, shardPos);
+    const fullSeg = pathSegment(node, fullPositions.get(node) ?? shardPos);
+
+    if (shardSeg === fullSeg) {
+      continue;
+    }
+
+    const shardPrefix = parentKey ? `${parentKey} > ${shardSeg}` : shardSeg;
+    const fullPrefix = parentKey ? `${parentKey} > ${fullSeg}` : fullSeg;
+    map.set(shardPrefix, fullPrefix);
   }
 
-  return buckets.filter((b) => b.length > 0);
+  return map;
+}
+
+function remapPath(p: string, map: Map<string, string>): string {
+  for (const [shardPrefix, fullPrefix] of map) {
+    if (p === shardPrefix) {
+      return fullPrefix;
+    }
+    if (p.startsWith(`${shardPrefix} > `)) {
+      return fullPrefix + p.slice(shardPrefix.length);
+    }
+  }
+  return p;
+}
+
+function buildFullShardPathMaps(
+  root: ElmtNode,
+  parent: ElmtNode,
+  shard: ElmtNode[],
+): Map<string, string>[] {
+  const path = pathToNode(root, parent);
+  const maps: Map<string, string>[] = [];
+
+  if (path && path.length >= 3) {
+    for (let i = 1; i <= path.length - 2; i++) {
+      const ancestor = path[i] as ElmtNode;
+      const childOnPath = path[i + 1] as ElmtNode;
+      const m = buildShardPathMap(root, ancestor, [childOnPath]);
+      if (m.size > 0) {
+        maps.push(m);
+      }
+    }
+  }
+
+  const leaf = buildShardPathMap(root, parent, shard);
+  if (leaf.size > 0) {
+    maps.push(leaf);
+  }
+
+  return maps;
+}
+
+function remapWorkerState(
+  state: VisualizerComputedState,
+  maps: Map<string, string>[],
+): VisualizerComputedState {
+  if (maps.length === 0) {
+    return state;
+  }
+
+  const remapChain = (p: string) => {
+    let s = p;
+    for (const m of maps) {
+      s = remapPath(s, m);
+    }
+    return s;
+  };
+
+  return {
+    ...state,
+    visitedPaths: state.visitedPaths.map(remapChain),
+    matchedPaths: state.matchedPaths.map(remapChain),
+    results: state.results.map((r) => ({
+      ...r,
+      path: remapChain(r.path),
+      id: remapChain(r.id),
+    })),
+  };
+}
+
+function subtreeNodeCount(node: ElmtNode): number {
+  let count = 1;
+  for (const ch of node.children) {
+    if (ch.type === "element") {
+      count += subtreeNodeCount(ch as ElmtNode);
+    }
+  }
+  return count;
+}
+
+type SplitBranch = {
+  parent: ElmtNode;
+  node: ElmtNode;
+  size: number;
+};
+
+function balancedSplitShards(
+  root: ElmtNode,
+  bucketTarget: number,
+): { parent: ElmtNode; shard: ElmtNode[] }[] {
+  if (bucketTarget <= 1) {
+    return [];
+  }
+
+  const branching = splitPoint(root);
+  if (!branching) {
+    return [];
+  }
+
+  const { parent: initialParent, siblings } = branching;
+  let branches: SplitBranch[] = siblings.map((node) => ({
+    parent: initialParent,
+    node,
+    size: subtreeNodeCount(node),
+  }));
+
+  while (branches.length < bucketTarget) {
+    let bestIdx = -1;
+    let bestSize = -1;
+    for (let i = 0; i < branches.length; i++) {
+      const kids = elementChildren(branches[i].node);
+      if (kids.length >= 2 && branches[i].size > bestSize) {
+        bestSize = branches[i].size;
+        bestIdx = i;
+      }
+    }
+    if (bestIdx === -1) {
+      break;
+    }
+
+    const chosen = branches[bestIdx];
+    const kids = elementChildren(chosen.node);
+    const expanded: SplitBranch[] = kids.map((node) => ({
+      parent: chosen.node,
+      node,
+      size: subtreeNodeCount(node),
+    }));
+    branches.splice(bestIdx, 1, ...expanded);
+  }
+
+  const byParent = new Map<ElmtNode, SplitBranch[]>();
+  for (const b of branches) {
+    const list = byParent.get(b.parent) ?? [];
+    list.push(b);
+    byParent.set(b.parent, list);
+  }
+
+  const totalSize = branches.reduce((sum, b) => sum + b.size, 0);
+  if (totalSize === 0) {
+    return [];
+  }
+
+  type ParentGroup = {
+    parent: ElmtNode;
+    branches: SplitBranch[];
+    groupSize: number;
+  };
+  const parentGroups: ParentGroup[] = [...byParent.entries()].map(
+    ([parent, list]) => ({
+      parent,
+      branches: list,
+      groupSize: list.reduce((s, b) => s + b.size, 0),
+    }),
+  );
+
+  parentGroups.sort((a, b) => b.groupSize - a.groupSize);
+
+  const quotas = parentGroups.map(
+    (g) => (g.groupSize / totalSize) * bucketTarget,
+  );
+  const fractional = quotas.map((q) => q - Math.floor(q));
+
+  let bucketCounts = quotas.map((q) => Math.max(1, Math.floor(q)));
+  let sumBuckets = bucketCounts.reduce((a, b) => a + b, 0);
+
+  if (sumBuckets > bucketTarget) {
+    let excess = sumBuckets - bucketTarget;
+    const order = [...bucketCounts.keys()].sort(
+      (i, j) => bucketCounts[j] - bucketCounts[i],
+    );
+    for (const idx of order) {
+      if (excess === 0) break;
+      const canRemove = bucketCounts[idx] - 1;
+      if (canRemove > 0) {
+        const take = Math.min(canRemove, excess);
+        bucketCounts[idx] -= take;
+        excess -= take;
+      }
+    }
+  } else if (sumBuckets < bucketTarget) {
+    let deficit = bucketTarget - sumBuckets;
+    const remainderOrder = [...quotas.keys()].sort(
+      (i, j) => fractional[j] - fractional[i],
+    );
+    let r = 0;
+    while (deficit > 0 && r < remainderOrder.length * bucketTarget) {
+      bucketCounts[remainderOrder[r % remainderOrder.length]] += 1;
+      deficit -= 1;
+      r += 1;
+    }
+  }
+
+  sumBuckets = bucketCounts.reduce((a, b) => a + b, 0);
+  if (sumBuckets > bucketTarget) {
+    let excess = sumBuckets - bucketTarget;
+    const order = [...bucketCounts.keys()].sort(
+      (i, j) => bucketCounts[j] - bucketCounts[i],
+    );
+    for (const idx of order) {
+      if (excess === 0) break;
+      const canRemove = bucketCounts[idx] - 1;
+      if (canRemove > 0) {
+        const take = Math.min(canRemove, excess);
+        bucketCounts[idx] -= take;
+        excess -= take;
+      }
+    }
+  }
+
+  const out: { parent: ElmtNode; shard: ElmtNode[] }[] = [];
+
+  for (let gi = 0; gi < parentGroups.length; gi++) {
+    const { parent, branches: groupBranches } = parentGroups[gi];
+    let k = Math.max(1, bucketCounts[gi]);
+    k = Math.min(k, Math.max(1, groupBranches.length));
+    const sorted = [...groupBranches].sort((a, b) => b.size - a.size);
+    const loads: number[] = Array.from({ length: k }, () => 0);
+    const buckets: ElmtNode[][] = Array.from({ length: k }, () => []);
+
+    for (const br of sorted) {
+      let minIdx = 0;
+      for (let j = 1; j < k; j++) {
+        if (loads[j] < loads[minIdx]) {
+          minIdx = j;
+        }
+      }
+      buckets[minIdx].push(br.node);
+      loads[minIdx] += br.size;
+    }
+
+    for (const shard of buckets) {
+      if (shard.length > 0) {
+        out.push({ parent, shard });
+      }
+    }
+  }
+
+  return out;
 }
 
 // reorder shard results
@@ -208,14 +479,19 @@ function runWorker(payload: TWorker): Promise<VisualizerComputedState> {
 
 function mergeBlocks(
   workerCount: number,
+  userCap: number,
   blocks: TraceEntry[][],
   wallMs: number,
 ): TraceEntry[] {
+  const capNote =
+    workerCount < userCap
+      ? ` (${String(userCap)} configured, using ${String(workerCount)} - limited by DOM structure / shard layout)`
+      : "";
   const header: TraceEntry[] = [
     {
       time: formatTime(),
       level: "INFO",
-      text: `Parallel traversal: ${String(workerCount)} worker${workerCount === 1 ? "" : "s"} finished in ${String(wallMs)}ms (wall clock).`,
+      text: `Parallel traversal: ${String(workerCount)} worker${workerCount === 1 ? "" : "s"} finished in ${String(wallMs)}ms (wall clock).${capNote}`,
     },
   ];
 
@@ -242,6 +518,7 @@ function mergeRes(options: {
   limit: number;
   workerCount: number;
   wallMs: number;
+  userCap: number;
 }): VisualizerComputedState {
   const {
     states,
@@ -252,7 +529,13 @@ function mergeRes(options: {
     limit,
     workerCount,
     wallMs,
+    userCap,
   } = options;
+
+  const maxWorkerMs = Math.max(
+    1,
+    ...states.map((s) => Math.max(1, parseInt(s.summary.execution) || 1)),
+  );
 
   const { pathMetaMap } = buildMeta(root);
   const visitOrder = visitPathOrder(root, algorithm);
@@ -311,13 +594,13 @@ function mergeRes(options: {
 
   const visitedPathsOrdered = visitOrder.filter((p) => unionVisited.has(p));
 
-  const traceEntries = mergeBlocks(workerCount, traceBlocks, wallMs);
+  const traceEntries = mergeBlocks(workerCount, userCap, traceBlocks, wallMs);
 
   const completionMessage = stoppedByLimit
-    ? `Traversal stopped after reaching top ${String(matchLimit)} match${matchLimit === 1 ? "" : "es"} (parallel).`
+    ? `Traversal stopped after reaching top ${String(matchLimit)} match${matchLimit === 1 ? "" : "es"} (parallel, wall: ${String(wallMs)}ms).`
     : capped.length > 0
-      ? `Parallel traversal finished on ${label} with ${String(capped.length)} match${capped.length === 1 ? "" : "es"}.`
-      : `Parallel traversal finished on ${label} with no matches.`;
+      ? `Parallel traversal finished on ${label} with ${String(capped.length)} match${capped.length === 1 ? "" : "es"} (wall: ${String(wallMs)}ms).`
+      : `Parallel traversal finished on ${label} with no matches (wall: ${String(wallMs)}ms).`;
 
   return {
     results: nextResults,
@@ -329,7 +612,7 @@ function mergeRes(options: {
       match: nextResults.length,
       error: 0,
       visited: totalVisited,
-      execution: `${Math.max(1, wallMs)}ms`,
+      execution: `${maxWorkerMs}ms`,
       maxDepth: Math.max(maxDepth, visitOrder.length > 0 ? 1 : 0),
     },
     statusText: completionMessage,
@@ -369,9 +652,12 @@ export async function parallelTraverse(
     ),
   );
   const started = performance.now();
-  const branching = splitPoint(root);
+  const hw =
+    typeof navigator !== "undefined" ? (navigator.hardwareConcurrency ?? 4) : 4;
+  const bucketTarget = Math.min(userCap, hw);
+  const splitShards = balancedSplitShards(root, bucketTarget);
 
-  if (!branching) {
+  if (splitShards.length === 0) {
     const state = await runWorker({
       treeJson: JSON.stringify(root),
       label,
@@ -383,13 +669,11 @@ export async function parallelTraverse(
     return rebind(root, state);
   }
 
-  const { parent, siblings } = branching;
-  const hw =
-    typeof navigator !== "undefined" ? (navigator.hardwareConcurrency ?? 4) : 4;
-  const bucketTarget = Math.min(userCap, Math.min(siblings.length, hw));
-  const shards = partitionShards(siblings, bucketTarget);
+  const shardMaps = splitShards.map(({ parent, shard }) =>
+    buildFullShardPathMaps(root, parent, shard),
+  );
 
-  const payloads: TWorker[] = shards.map((shard) => ({
+  const payloads: TWorker[] = splitShards.map(({ parent, shard }) => ({
     treeJson: JSON.stringify(cloneShard(root, parent, shard)),
     label,
     algorithm,
@@ -401,11 +685,14 @@ export async function parallelTraverse(
   const settled = await Promise.all(
     payloads.map((payload) => runWorker(payload)),
   );
+  const remapped = settled.map((state, i) =>
+    remapWorkerState(state, shardMaps[i] ?? []),
+  );
 
   const wallMs = Math.max(1, Math.round(performance.now() - started));
 
   return mergeRes({
-    states: settled,
+    states: remapped,
     root,
     label,
     algorithm,
@@ -413,5 +700,6 @@ export async function parallelTraverse(
     limit,
     workerCount: settled.length,
     wallMs,
+    userCap,
   });
 }
