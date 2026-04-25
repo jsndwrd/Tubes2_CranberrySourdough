@@ -26,7 +26,7 @@ bun run build
 bun run preview
 ```
 
-## Struktur Directory Singkat
+## Struktur Directory Program
 
 ```text
 Tubes2_CranberrySourdough/
