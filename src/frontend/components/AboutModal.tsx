@@ -252,21 +252,17 @@ function ModalBody({ activeTab }: { activeTab: AboutTab }) {
 }
 
 export function AboutModal({ isOpen, onClose }: AboutModalProps) {
+  if (!isOpen) {
+    return null;
+  }
+
+  return <OpenAboutModal onClose={onClose} />;
+}
+
+function OpenAboutModal({ onClose }: Pick<AboutModalProps, "onClose">) {
   const [activeTab, setActiveTab] = useState<AboutTab>("about");
 
   useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
-    setActiveTab("about");
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (!isOpen) {
-      return;
-    }
-
     const previousOverflow = document.body.style.overflow;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
@@ -281,11 +277,7 @@ export function AboutModal({ isOpen, onClose }: AboutModalProps) {
       document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [isOpen, onClose]);
-
-  if (!isOpen) {
-    return null;
-  }
+  }, [onClose]);
 
   return (
     <div
