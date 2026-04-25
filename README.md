@@ -2,14 +2,45 @@
 
 ### IF2211 Algorithm Strategy 2nd Project
 
-## Quick Commands
+## Program Singkat
 
-- Development
+Project ini adalah visualizer penelusuran DOM tree untuk CSS selector. Pengguna bisa memasukkan URL atau raw HTML, lalu menjalankan traversal dengan BFS atau DFS untuk melihat node yang cocok, urutan kunjungan, dan hasil inspeksi DOM secara visual.
 
-  ```bash
-  bun install # Run this when first pulling repo
-  bun dev
-  ```
+## Dependency
+
+- Bun
+- Node.js modern yang kompatibel dengan Vite
+- Paket frontend utama: React, React DOM, Vite, Tailwind CSS
+
+## Instalasi dan Run
+
+```bash
+bun install
+bun dev
+```
+
+Kalau ingin build production:
+
+```bash
+bun run build
+bun run preview
+```
+
+## Struktur Directory Singkat
+
+```text
+Tubes2_CranberrySourdough/
+├─ backend/      # Server pendukung
+│  └─ server.ts
+├─ src/          # Source frontend
+│  ├─ App.tsx
+│  ├─ main.tsx
+│  ├─ frontend/  # Komponen, logic, dan UI frontend
+│  └─ lib/       # Utilitas parsing, search, tree, worker
+├─ docs/         # Laporan dan aset dokumentasi
+├─ public/       # Asset statis
+└─ Dockerfile / docker-compose.yml
+```
 
 
 ## Authors
