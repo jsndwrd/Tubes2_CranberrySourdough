@@ -1,0 +1,29 @@
+\chapter{Kesimpulan dan Saran}
+
+\section{Kesimpulan}
+
+Berdasarkan hasil perancangan, implementasi, dan pengujian aplikasi penelusuran DOM Tree menggunakan algoritma BFS dan DFS, dapat disimpulkan beberapa hal berikut.
+
+\begin{enumerate}
+    \item Parsing HTML dari input URL maupun raw HTML menjadi struktur DOM Tree yang dapat ditelusuri berhasil dilakukan. Struktur pohon yang terbentuk merepresentasikan hubungan parent-child antar elemen HTML.
+
+    \item BFS dan DFS diimplementasikan untuk menelusuri DOM Tree berdasarkan CSS selector. BFS menelusuri node berdasarkan tingkat kedalaman, sedangkan DFS menelusuri cabang pohon sedalam mungkin sebelum berpindah ke cabang berikutnya.
+
+    \item Visualisasi DOM Tree, hasil pencarian, node yang dikunjungi, node yang cocok dengan selector, jumlah node yang dikunjungi, waktu eksekusi, serta traversal log berhasil ditampilkan sehingga membantu pengguna memahami perbedaan pola traversal BFS dan DFS.
+
+    \item LCA Binary Lifting diimplementasikan untuk mencari \textit{ancestor} terendah yang sama dari dua node pada DOM Tree. Selain itu, multithreading menggunakan Web Worker juga berhasil diterapkan untuk mempercepat traversal pada kasus tertentu.
+
+    \item Aplikasi dapat dikompilasi dan dijalankan dengan baik. Fitur utama yang diwajibkan pada spesifikasi tugas besar telah terpenuhi.
+\end{enumerate}
+
+\section{Saran}
+
+Beberapa saran untuk pengembbangan lebih lanjut antara lain:
+
+\begin{enumerate}
+    \item CSS Selector dapat diperluas agar dapat mendukung jenis selector lainnya.
+
+    \item Visualisasi DOM Tree dapat dikembangkan agar lebih optimal untuk halaman web yang sangat besar, misalnya dengan fitur collapse dan expand subtree.
+
+    \item Fitur multithreading dapat dikembangkan lebih lanjut agar dapat lebih mempercepat proses penelusuran secara efisien.
+\end{enumerate}

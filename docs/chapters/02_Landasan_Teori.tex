@@ -1,0 +1,47 @@
+\chapter{Landasan Teori}
+
+\section{Document Object Model (DOM)}
+
+Document Object Model (DOM) merupakan representassi dokumen HTML berstruktur seperti pohon. Representasi dalam DOM membuat seluruh elemen situs web dapat diakses, dimodifikasi, dan dimanipulasi. Setiap elemen di dalamnya memiliki relasai hierarkis berupa \textit{parent}, \textit{child}, \textit{sibling}, dan sejenisnya sehingga dokumen HTML dapat diproses layaknya pohon.
+
+Dokumen HTML mencakup elemen \texttt{<html>} yang di dalamnya terdapat elemen \texttt{<head>} yang memuat metadata berupa judul situs, tautan menuju file eksternal seperti \textit{stylesheet}, dan sejenisnya serta elemen \texttt{<body>} yang memuat konten yang ditampilkan kepada pengguna.
+
+Struktur DOM terbentuk melalui parsing HTML, lalu terdapat \textit{Cascading Style Sheet} (CSS) yang mengatur bentuk tampilan tiap elemen yang sudah terdapat pada DOM melalui mekanisme CSS Selector.
+
+Pada tugas ini, struktur DOM dipandang sebagai pohon yang dapat ditelusuri menggunakan algoritma penelusuran graf/pohon \textit{Breadth First Search} (BFS) dan \textit{Depth First Search} (DFS). Setiap node dapat dikunjungi secara sistematis kemudian diuji apakah node tersebut sesuai dengan CSS selector yang diberikan.
+
+\section{Tag HTML}
+
+Tag HTML mendefinisikan jenis dan struktur elemen dalam dokumen HTML sekaligus membantu \textit{browser} (atau parser) mengetahui batas awal dan akhir suatu elemen serta bagaimana konten di dalamnya diinterpretasikan.
+
+Umumnya, tag menggunakan tanda kurung sudut \texttt{< >} dengan tag penutup ditulis dengan menambahkan \texttt{/} sebelum nama tag. Selain itu, terdapat elemen tertentu yang bersifat \textit{self-closing} sehingga dapat menggunakan tanda \texttt{< />}.
+
+Dalam representasi pohon DOM, setiap elemen HTML direpresentasikan sebagai \textit{node} dan relasinya membentuk hierarki \textit{parent-child} serta hubungan \textit{sibling}. 
+Struktur ini memungkinkan proses penelusuran dan pencarian elemen dilakukan menggunakan algoritma penelusuran pohon BFS atau DFS.
+
+\section{CSS Selector}
+
+CSS selector adalah mekanisme untuk pemilihan elemen pada struktur DOM agar dapat diaplikasikan suatu \textit{style}. 
+Selector menentukan kriteria pemilihan elemen berdasarkan nama tag, \textit{id}, \textit{class}, atau identifier lainnya. Selector yang umum ditemukan:
+\begin{itemize}
+    \item \textbf{Tag selector}: memilih elemen berdasarkan nama tag, misalnya \texttt{p}.
+    \item \textbf{Class selector}: memilih elemen berdasarkan atribut \textit{class} dengan notasi titik, misalnya \texttt{.box}.
+    \item \textbf{ID selector}: memilih elemen berdasarkan atribut \textit{id} dengan notasi pagar, misalnya \texttt{\#header}.
+    \item \textbf{Universal selector}: memilih semua elemen, yaitu \texttt{*}.
+\end{itemize}
+
+Terdapat juga \textit{combinator} untuk menyatakan relasi antarelemen:
+\begin{itemize}
+    \item Child combinator (\texttt{>}): memilih keturunan langsung.
+    \item Descendant combinator (spasi): memilih keturunan.
+    \item Adjacent sibling combinator (\texttt{+}): memilih saudara tepat setelahnya.
+    \item General Sibling Combinator (\texttt{\textasciitilde}): memilih semua saudara setelahnya.
+\end{itemize}
+
+\section{HTML Parsing}
+
+HTML parsing adalah proses membaca dokumen HTML dan menyusunnya menjadi struktur pohon yang merepresentasikan elemen dan relasi antar elemen. 
+Parser memproses token HTML secara berurutan, mengenali tag pembuka dan penutup, serta konten teks maupun komentar, kemudian menempatkannya pada posisi yang sesuai di dalam hierarki.
+
+Parsing menghasilkan DOM tree yang memungkinkan elemen ditelusuri secara terstruktur. 
+Pada implementasi penelusuran, setiap node dikunjungi mengikuti urutan BFS atau DFS, lalu dilakukan pencocokan terhadap CSS selector untuk menentukan apakah node merupakan target pencarian.

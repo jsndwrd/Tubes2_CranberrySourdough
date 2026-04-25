@@ -1,0 +1,47 @@
+\chapter{Aplikasi BFS dan DFS}
+
+Penelusuran \textit{Document Object Model} (DOM) dibangun menggunakan antarmuka berbasis web (React dengan TypeScript) dan sistem \textit{backend} (sebagai \textit{middleware/proxy} menggunakan Vite Plugin) untuk melakukan \textit{scraping} HTML. Setelah mendapatkan HTML dari target, seluruh token didalamnya diproses menjadi struktur data DOM \textit{Tree} lalu algoritma \textit{Breadth First Search} (BFS) dan \textit{Depth First Search} (DFS) diaplikasikan untuk menelusuri elemen-elemen sesuai dengan CSS \textit{Selector} yang diberikan pengguna.
+
+\section{Mekanisme Algoritma Penelusuran}
+
+DFS dan BFS diimplementasikan untuk mengunjungi setiap \textit{node} pada DOM Tree. Algoritma didesain agar dapat menerima sebuah fungsi predikat yang bertugas untuk mengevaluasi apakah suatu \textit{node} memenuhi kriteria CSS \textit{Selector} yang diminta.
+
+\subsection{Depth First Search (DFS)}
+Depth First Search merupakan algoritma penelusuran secara mendalam (\textit{deep}). DFS menelusuri cabang pohon hingga mencapai \textit{leaf node} sebelum melakukan \textit{backtracking} untuk mengeksplorasi cabang lainnya.
+
+Mekanisme DFS diimplementasikan dengan pendekatan rekursif dan penelusuran \textit{pre-order}. Terdapat dua fungsi utama untuk DFS:
+\begin{itemize}
+    \item \textbf{\texttt{dfsWalk}}: Fungsi ini digunakan untuk menelusuri seluruh pohon dan mengeksekusi suatu aksi (misalnya mengumpulkan elemen yang cocok dengan \textit{selector}) pada setiap \textit{node} yang dikunjungi. Algoritma memanggil fungsi secara rekursif pada setiap anak (\textit{children}) dari suatu elemen, sembari mencatat kedalaman (\textit{depth}) iterasi saat ini.
+    \item \textbf{\texttt{dfs}}: Fungsi ini digunakan untuk menemukan elemen pertama yang memenuhi syarat (fungsi predikat mengembalikan nilai \textit{true}). Jika elemen saat ini memenuhi kriteria, pencarian dihentikan dan elemen tersebut dikembalikan. Jika tidak, pencarian akan dilanjutkan secara rekursif ke anak-anaknya.
+\end{itemize}
+
+\subsection{Breadth First Search (BFS)}
+Breadth First Search merupakan algoritma penelusuran secara melebar (\textit{wide}). BFS mengeksplorasi seluruh \textit{node} pada tingkat kedalaman (\textit{depth}) yang sama terlebih dahulu sebelum turun ke tingkat kedalaman berikutnya.
+
+Mekanisme BFS diimplementasikan dengan pendekatan iteratif menggunakan struktur data \textit{queue}. Terdapat dua fungsi utama untuk BFS:
+\begin{itemize}
+    \item \textbf{\texttt{bfsWalk}}: Fungsi penelusuran lengkap yang menginisialisasi sebuah antrean dengan node root di dalamnya. Selama antrean tidak kosong, \textit{node} paling depan akan diambil (\textit{dequeue}), dievaluasi, dan seluruh anak dari \textit{node} tersebut akan dimasukkan ke bagian belakang antrean (\textit{enqueue}).
+    \item \textbf{\texttt{bfs}}: Fungsi pencarian yang iteratif menelusuri pohon tingkat demi tingkat. Jika \textit{node} yang sedang di-\textit{dequeue} memenuhi fungsi predikat, algoritma akan langsung mengembalikan \textit{node} tersebut dan proses perulangan (\textit{while loop}) dihentikan.
+\end{itemize}
+
+\section{Pemodelan Pohon DOM dan Integrasi Penelusuran}
+
+Sebelum BFS dan DFS dapat digunakan, aplikasi harus merepresentasikan kode HTML sebagai graf berbentuk pohon berakar (\textit{rooted tree}). Proses ini dilakukan melalui \textit{Scraping} \& \textit{Tokenizing}, serta \textit{Tree Building}.
+
+\subsection{Scraping dan Parsing HTML}
+Batasan CORS (\textit{Cross-Origin Resource Sharing}) menyebabkan permintaan data dilakukan melalui \textit{backend middleware} menggunakan \texttt{node:http}. Hasil \textit{scraping} berupa string HTML dikembalikan ke \textit{frontend} dan diproses oleh \textit{library html-tokenizer}.  Teks hierarkis diubah menjadi kumpulan token datar (seperti token \textit{open tag}, \textit{close tag}, \textit{text}, dan \textit{comment}).
+
+\subsection{Pembentukan Pohon (Tree Building)}
+Kumpulan token kemudian disusun menjadi pohon menggunakan pendekatan \textit{Stack} yang berisikan \texttt{ElmtNode} (elemen tag), \texttt{TextNode} (teks biasa), dan \texttt{CommentNode} (komentar HTML).
+Langkah-langkah penyusunan pohon adalah sebagai berikut:
+\begin{enumerate}
+    \item Inisialisasi \textit{root node} berjenis elemen dengan \textit{tag} \texttt{\#document} dan masukkan ke dalam \textit{stack}.
+    \item Setiap iterasi membaca satu token secara linear lalu mengecek apabila token merupakan \textit{open tag}, maka \texttt{ElmtNode} baru dibuat, disematkan sebagai anak (\textit{child}) dari elemen paling atas di \textit{stack}, dan dimasukkan ke dalam \textit{stack} (kecuali jika merupakan tag \textit{self-closing}).
+    \item Jika token berupa teks atau komentar, \textit{node} bersangkutan ditambahkan ke dalam \textit{children} milik elemen teratas di \textit{stack} tanpa memodifikasi \textit{stack}.
+    \item Jika token berupa \textit{close tag}, pengecekan dilakukan pada \textit{stack} dari atas ke bawah untuk mencari \textit{open tag} yang bersesuaian, lalu membuang elemen-elemen di atasnya sehingga konteks penyusunan (\textit{parent}) kembali naik ke level sebelumnya.
+\end{enumerate}
+
+\subsection{Pencocokan CSS Selector}
+Setelah \textit{DOM Tree} selesai disusun ke dalam representasi \texttt{Node}, DFS atau BFS dijalankan dengan titik awal pada \textit{root}. Pemrosesan CSS \textit{Selector} diabstraksi menjadi sebuah fungsi kondisional yang menerima parameter sebuah \textit{node}. 
+
+Fungsi DFS (\texttt{dfsWalk}) maupun BFS (\texttt{bfsWalk}) memberikan urutan penyusunan ruang pencarian. Setiap kali algoritma berhenti di suatu \textit{node}, atribut \textit{node} seperti nama \textit{tag} dan koleksi \textit{properties} akan diperiksa oleh predikat \textit{selector}. Elemen yang lolos evaluasi akan disimpan untuk nantinya dirender pada proses visualisasi di sisi \textit{frontend}.

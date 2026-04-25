@@ -23,3 +23,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# LaTex auxiliary files
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cbl
+*.cb2
+*.lb
+*.blg
+*.bbl
+*.run.xml
+*.fdb_latexmk
+*.synctex.gz
+*.synctex(busy)
+*.nav

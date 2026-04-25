@@ -1,0 +1,59 @@
+\documentclass[a4paper,10pt,oneside]{book} 
+\usepackage{CS_report}
+\usepackage{float}
+\usepackage[T1]{fontenc}   
+
+\makeatletter
+\pretocmd{\tableofcontents}{\hypersetup{linkcolor=black}}{}{}
+\makeatother
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+
+    \captionsetup[figure]{margin=1.5cm,font=small,name={Gambar},labelsep=colon}
+    \captionsetup[table]{margin=1.5cm,font=small,name={Tabel},labelsep=colon}
+    
+    \frontmatter
+    
+    \begin{titlepage}
+        \begin{center}
+            
+            \vspace{5cm}
+            {\LARGE \textbf{Laporan Tugas Besar 2}}\\[0.5cm]
+
+            {\Large IF2211 \textsc{Strategi Algoritma}}\\[0.2cm]
+            {\large \textsc{\textit{Pemanfaatan Algoritma BFS dan DFS dalam Mekanisme Penelusuran CSS pada pohon Document Object Model}}}\\[0.2cm]
+            {\normalsize \textsc{Semester II Tahun 2025/2026}}\\[1.5cm]
+
+            \includegraphics[scale = 0.4]{cover/cover.png}\\[2cm]
+            {\Large Disusun oleh: \\[0.2cm]
+            Muhammad Nur Majiid  -  13524028 \\[0.1cm]
+            Jason Edward Salim  -  13524034 \\[0.2cm]
+            Bryan Pratama Putra Hendra  -  13524067}\\[0.8cm]
+
+            \vspace{2cm}
+            
+            {\normalsize \textsc{
+            Laboratorium Ilmu dan Rekayasa Komputasi\\
+            Program Studi Teknik Informatika\\
+            Sekolah Teknik Elektro dan Informatika\\
+            Institut Teknologi Bandung}}\\[0.3cm]
+    
+        \end{center}
+    \end{titlepage}
+    
+    \tableofcontents
+
+    \mainmatter
+    
+    \input{chapters/01_Deskripsi_Tugas}
+    \input{chapters/02_Landasan_Teori}
+    \input{chapters/03_Aplikasi_BFS_dan_DFS}
+    \input{chapters/04_Implementasi_dan_Pengujian}
+    \input{chapters/05_Kesimpulan_dan_Saran}
+    \input{chapters/lampiran}
+    \input{chapters/pernyataan}
+\end{document}
